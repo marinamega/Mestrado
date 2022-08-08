@@ -30,7 +30,7 @@ p_low<- prainha[prainha$tide_height == "low", ]
 p_high<- prainha[prainha$tide_height == "high", ]
 p_mid<- prainha[prainha$tide_height == "mid", ]
 
-## Flutuações ao longo do tempo
+## Flutua??es ao longo do tempo
 
 # Plot
 p_low %>%
@@ -97,14 +97,46 @@ temp <- temp[ ,c(1,2,9,3,4,5,6,7,8)]
 temp$temp <- as.numeric(temp$temp)
 temp$date <- as.Date(temp$date, format = "%d_%m_%Y")
 str(temp$date)
-temp$sensor <- sub(" Fortshade", "Fortshade", temp$sensor)
-temp$sensor <- sub(" Fortsun", "Fortsun", temp$sensor)
-temp$sensor <- sub(" Fortshade", "Fortshade", temp$sensor)
+temp$sensor <- sub(" Fortshade", "teste", temp$sensor)
+temp$sensor <- sub("Fortshade", "shade", temp$sensor)
+temp$sensor <- sub("teste", "shade", temp$sensor)
+temp$sensor <- sub(" Fortsun", "sun", temp$sensor)
+
+temp$sensor <- sub("// Fortshade", "shade", temp$sensor)
+
+temp <- mutate_at(temp, c("sensor"), ~replace(., is.na(.), 'sun'))
+
+unique(temp$sensor)
+
 
 temp %>%
 mutate(date = gsub("_", "-", date) %>%
-       sensor = factor(sensor, levels = c("Fortsun", "Fortshade", "NA"))) %>%
+       sensor = factor(sensor, levels = c("shade", "sun"))) %>%
   ggplot(temp, aes(x = date, y = temp, group = date)) +
-  geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+  geom_point(aes(color=sensor))+
+  facet_wrap(~ sensor) +
+  geom_boxplot(shape=21, color="black", fill="#69b3a2", outlier.shape = NA) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+
+##################################33
+## Separando por sensor ##
+#sun<- temp[temp$sensor == "sun", ]
+#shade<- temp[temp$sensor == "shade", ]
+
+#unique(sun$date)
+#unique(shade$date)
+
+#sun %>%
+ # ggplot(aes(x=date, y=temp, group = date)) +
+  #geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+#  theme_classic() +
+ # theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+
+#shade %>%
+ # ggplot(aes(x=date, y=temp, group = date)) +
+  #geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+  #theme_classic() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+
+
