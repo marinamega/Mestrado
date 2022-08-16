@@ -8,6 +8,8 @@ library(readxl)
 ### DIRETÓRIO ###
 setwd('C:/Users/marin/Documents/Mestrado/Projeto')
 
+mbon_p2p_jul2022 <- readxl::read_xlsx("mbon_p2p_jul2022.xlsx")
+
 ### DENSIDADE/COBERTURA AO LONGO DO TEMPO ###
 ### Densidade Lottia ###
 mbon_p2p_jul2022 %>% 
@@ -49,23 +51,44 @@ mbon_p2p_jul2022 %>%
 
 
 ####### tentando fazer loop
-########## ERRO
 
-teste<-mbon_p2p_jul2022[(1:500),]
+# inicialmente eh melhor ver quais sao as spp mais frequentes e 
+# abundantes pra nao gastar tempo em spp com pouco dado
 
-for(i in teste$type_cover) {teste %>% 
-    filter(!relative_cover %in% c("?", "X")) %>% 
+teste %>% 
+  filter(!relative_cover %in% c("?", "X")) %>% 
+  mutate(relative_cover = as.numeric(relative_cover),
+         data = gsub("_", "-", data) %>% 
+           as.POSIXct(format="%d-%m-%Y") %>% 
+           as.Date(format = "%m-%Y"),
+         tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
+  ggplot(aes(x=type_cover, y=relative_cover)) +
+    geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
+
+
+# loop funcionando agora, mas vale olhar apenas o que eh representativo
+
+teste <-mbon_p2p_jul2022[(1:500),]
+
+for(i in unique(teste$type_cover)) {
+  a <- teste %>% 
+    filter(!relative_cover %in% c("?", "X"),
+           type_cover == i) %>% 
     mutate(relative_cover = as.numeric(relative_cover),
            data = gsub("_", "-", data) %>% 
              as.POSIXct(format="%d-%m-%Y") %>% 
              as.Date(format = "%m-%Y"),
            tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
     ggplot(aes(x=data, y=relative_cover, group = data)) +
-    geom_boxplot(shape=21, color="black", fill="#69b3a2") +
-    ggtitle(i) +
-    facet_grid(tideHeight ~ locality ) +
-    theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))}
+      geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+      ggtitle(i) +
+      facet_grid(tideHeight ~ locality ) +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
+  print(a)
+  }
 
 
 ### TEMPERATURA AO LONGO DO TEMPO ###
