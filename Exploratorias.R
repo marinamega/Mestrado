@@ -10,70 +10,33 @@ setwd('C:/Users/marin/Documents/Mestrado/Projeto')
 
 mbon_p2p_jul2022 <- readxl::read_xlsx("mbon_p2p_jul2022.xlsx")
 
-### DENSIDADE/COBERTURA AO LONGO DO TEMPO ###
-### Densidade Lottia ###
-mbon_p2p_jul2022 %>% 
-  filter(motile == "Lottia subrugosa",
-         !density_025m2 %in% c("?", "X")) %>% 
-  mutate(density_025m2 = as.numeric(density_025m2),
-         data = gsub("_", "-", data) %>% 
-           as.POSIXct(format="%d-%m-%Y") %>% 
-           as.Date(format = "%m-%Y"),
-         tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
-  # distinct(density_025m2) %>% pull()
-  ggplot(aes(x=data, y=density_025m2, group = data)) +
-    geom_boxplot(shape=21, color="black", fill="#69b3a2") +
-    ggtitle("Lottia subrugosa") +
-    #geom_jitter(size = 0.5, alpha = 0.5) +
-    facet_grid(tideHeight ~ locality ) +
-    theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+### VERIFICANDO OS GRUPOS MAIS REPRESENTATIVOS ###
+unique(mbon_p2p_jul2022$type_cover)
+unique(mbon_p2p_jul2022$motile)
 
-
-### Cobertura Tetraclita stalactifera ###
-mbon_p2p_jul2022 %>% 
-  filter(type_cover == "Tetraclita stalactifera",
-         !relative_cover %in% c("?", "X")) %>% 
-  mutate(relative_cover = as.numeric(relative_cover),
-         data = gsub("_", "-", data) %>% 
-           as.POSIXct(format="%d-%m-%Y") %>% 
-           as.Date(format = "%m-%Y"),
-         tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
-  # distinct(density_025m2) %>% pull()
-  ggplot(aes(x=data, y=relative_cover, group = data)) +
-  geom_boxplot(shape=21, color="black", fill="#69b3a2") +
-  ggtitle("Tetraclita stalactifera") +
-  #geom_jitter(size = 0.5, alpha = 0.5) +
+mbon_p2p_jul2022 %>%
+  filter(relative_cover >= 50) %>% ##coloquei 50 mas no gráfico o eixo y ta estranho
+ggplot(aes(x=type_cover, y=relative_cover)) + 
+  geom_bar(stat = "identity") +
   facet_grid(tideHeight ~ locality ) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90))
 
+mbon_p2p_jul2022 %>% 
+  filter(density_025m2 >= 50, ##coloquei 50 mas no gráfico o eixo y ta estranho
+         !density_025m2 %in% NA) %>%
+  ggplot(aes(x=motile, y=density_025m2)) + 
+  geom_bar(stat = "identity") +
+  facet_grid(tideHeight ~ locality ) +
+  theme(axis.text.x = element_text(angle = 90))
 
+#mais abundantes
+cover <- c("Amphiroa", "bare rock", "Chthamalus bisinuatus", "Jania", "Lithophyllum", "Mytilaster solisianus", "Tetraclita stalactifera", "Ulva fasciata", "Willeella brachyclados")
+motile <- c("Echinolittorina lineolata", "Fissurella rosea", "Lottia subrugosa", "Stramonita haemastoma")
 
-####### tentando fazer loop
-
-# inicialmente eh melhor ver quais sao as spp mais frequentes e 
-# abundantes pra nao gastar tempo em spp com pouco dado
-
-teste %>% 
-  filter(!relative_cover %in% c("?", "X")) %>% 
-  mutate(relative_cover = as.numeric(relative_cover),
-         data = gsub("_", "-", data) %>% 
-           as.POSIXct(format="%d-%m-%Y") %>% 
-           as.Date(format = "%m-%Y"),
-         tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
-  ggplot(aes(x=type_cover, y=relative_cover)) +
-    geom_boxplot(shape=21, color="black", fill="#69b3a2") +
-    theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
-
-
-# loop funcionando agora, mas vale olhar apenas o que eh representativo
-
-teste <-mbon_p2p_jul2022[(1:500),]
-
-for(i in unique(teste$type_cover)) {
-  a <- teste %>% 
+### DENSIDADE/COBERTURA AO LONGO DO TEMPO ###
+#cobertura
+for(i in cover) {
+  a <- mbon_p2p_jul2022 %>% 
     filter(!relative_cover %in% c("?", "X"),
            type_cover == i) %>% 
     mutate(relative_cover = as.numeric(relative_cover),
@@ -82,13 +45,72 @@ for(i in unique(teste$type_cover)) {
              as.Date(format = "%m-%Y"),
            tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
     ggplot(aes(x=data, y=relative_cover, group = data)) +
-      geom_boxplot(shape=21, color="black", fill="#69b3a2") +
-      ggtitle(i) +
-      facet_grid(tideHeight ~ locality ) +
-      theme_classic() +
-      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
+    geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+    ggtitle(i) +
+    facet_grid(tideHeight ~ locality ) +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
   print(a)
-  }
+}
+
+#móveis
+for(i in motile) {
+  a <- mbon_p2p_jul2022 %>% 
+    filter(!density_025m2 %in% c("?", "X"),
+           !motile %in% NA,
+           motile == i) %>% 
+    mutate(density_025m2 = as.numeric(density_025m2),
+           data = gsub("_", "-", data) %>% 
+             as.POSIXct(format="%d-%m-%Y") %>% 
+             as.Date(format = "%m-%Y"),
+           tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
+    ggplot(aes(x=data, y=density_025m2, group = data)) +
+    geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+    ggtitle(i) +
+    facet_grid(tideHeight ~ locality ) +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
+  print(a)
+}
+
+### Densidade Lottia ###
+#mbon_p2p_jul2022 %>% 
+ # filter(motile == "Lottia subrugosa",
+  #       !density_025m2 %in% c("?", "X")) %>% 
+  #mutate(density_025m2 = as.numeric(density_025m2),
+   #      data = gsub("_", "-", data) %>% 
+    #       as.POSIXct(format="%d-%m-%Y") %>% 
+     #      as.Date(format = "%m-%Y"),
+      #   tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
+  # distinct(density_025m2) %>% pull()
+#  ggplot(aes(x=data, y=density_025m2, group = data)) +
+ #   geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+  #  ggtitle("Lottia subrugosa") +
+   # #geom_jitter(size = 0.5, alpha = 0.5) +
+#    facet_grid(tideHeight ~ locality ) +
+ #   theme_classic() +
+  #  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+
+
+#teste <-mbon_p2p_jul2022[(1:500),]
+
+#for(i in unique(teste$type_cover)) {
+ # a <- teste %>% 
+  #  filter(!relative_cover %in% c("?", "X"),
+   #        type_cover == i) %>% 
+  #  mutate(relative_cover = as.numeric(relative_cover),
+   #        data = gsub("_", "-", data) %>% 
+    #         as.POSIXct(format="%d-%m-%Y") %>% 
+     #        as.Date(format = "%m-%Y"),
+      #     tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
+  #  ggplot(aes(x=data, y=relative_cover, group = data)) +
+   #   geom_boxplot(shape=21, color="black", fill="#69b3a2") +
+    #  ggtitle(i) +
+     # facet_grid(tideHeight ~ locality ) +
+  #    theme_classic() +
+   #   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
+  #print(a)
+  #}
 
 
 ### TEMPERATURA AO LONGO DO TEMPO ###
