@@ -4,6 +4,7 @@ library(dplyr)
 library(hrbrthemes)
 library(tidyr)
 library(readxl)
+library(patchwork)
 
 ### DIRETÓRIO ###
 setwd('C:/Users/marin/Documents/Mestrado/Projeto')
@@ -11,23 +12,31 @@ setwd('C:/Users/marin/Documents/Mestrado/Projeto')
 mbon_p2p_jul2022 <- readxl::read_xlsx("mbon_p2p_jul2022.xlsx")
 
 ### VERIFICANDO OS GRUPOS MAIS REPRESENTATIVOS ###
+
+#verificando se não há repetições/erros de digitação
 unique(mbon_p2p_jul2022$type_cover)
 unique(mbon_p2p_jul2022$motile)
 
-mbon_p2p_jul2022 %>%
+plotcov<- mbon_p2p_jul2022 %>%
   filter(relative_cover >= 50) %>% ##coloquei 50 mas no gráfico o eixo y ta estranho
 ggplot(aes(x=type_cover, y=relative_cover)) + 
   geom_bar(stat = "identity") +
   facet_grid(tideHeight ~ locality ) +
   theme(axis.text.x = element_text(angle = 90))
 
-mbon_p2p_jul2022 %>% 
+plotcov
+
+plotmot<- mbon_p2p_jul2022 %>% 
   filter(density_025m2 >= 50, ##coloquei 50 mas no gráfico o eixo y ta estranho
          !density_025m2 %in% NA) %>%
   ggplot(aes(x=motile, y=density_025m2)) + 
   geom_bar(stat = "identity") +
   facet_grid(tideHeight ~ locality ) +
   theme(axis.text.x = element_text(angle = 90))
+
+plotmot
+
+plotcov + plotmot
 
 #mais abundantes
 cover <- c("Amphiroa", "bare rock", "Chthamalus bisinuatus", "Jania", "Lithophyllum", "Mytilaster solisianus", "Tetraclita stalactifera", "Ulva fasciata", "Willeella brachyclados")
@@ -51,7 +60,26 @@ for(i in cover) {
     theme_classic() +
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
   print(a)
-}
+  }
+
+#juntando
+#como fazer para juntar? estão no loop... teria que salvar cada um do loop como objeto 
+# DA INTERNET: saber como aplicar pros meus dados
+#mylist <- list()
+#mtcars_short <- mtcars[1:5,]
+#for(i in 1:nrow(mtcars_short)){
+#  mydf <- mtcars[i,]
+#  p <- ggplot(mydf, aes(x=mpg, y=carb)) + geom_point()
+  
+#  mylist[[i]] <- p
+#}
+
+#myplot <- patchwork::wrap_plots(mylist, nrow=1)
+#nb_plots <- length(mylist)
+#basewidth <- grDevices::dev.size(units = "px")[1]
+#ggsave("test.png",
+#       width = nb_plots*basewidth,
+#       units = "px")
 
 #móveis
 for(i in motile) {
@@ -72,45 +100,6 @@ for(i in motile) {
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
   print(a)
 }
-
-### Densidade Lottia ###
-#mbon_p2p_jul2022 %>% 
- # filter(motile == "Lottia subrugosa",
-  #       !density_025m2 %in% c("?", "X")) %>% 
-  #mutate(density_025m2 = as.numeric(density_025m2),
-   #      data = gsub("_", "-", data) %>% 
-    #       as.POSIXct(format="%d-%m-%Y") %>% 
-     #      as.Date(format = "%m-%Y"),
-      #   tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
-  # distinct(density_025m2) %>% pull()
-#  ggplot(aes(x=data, y=density_025m2, group = data)) +
- #   geom_boxplot(shape=21, color="black", fill="#69b3a2") +
-  #  ggtitle("Lottia subrugosa") +
-   # #geom_jitter(size = 0.5, alpha = 0.5) +
-#    facet_grid(tideHeight ~ locality ) +
- #   theme_classic() +
-  #  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
-
-
-#teste <-mbon_p2p_jul2022[(1:500),]
-
-#for(i in unique(teste$type_cover)) {
- # a <- teste %>% 
-  #  filter(!relative_cover %in% c("?", "X"),
-   #        type_cover == i) %>% 
-  #  mutate(relative_cover = as.numeric(relative_cover),
-   #        data = gsub("_", "-", data) %>% 
-    #         as.POSIXct(format="%d-%m-%Y") %>% 
-     #        as.Date(format = "%m-%Y"),
-      #     tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
-  #  ggplot(aes(x=data, y=relative_cover, group = data)) +
-   #   geom_boxplot(shape=21, color="black", fill="#69b3a2") +
-    #  ggtitle(i) +
-     # facet_grid(tideHeight ~ locality ) +
-  #    theme_classic() +
-   #   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
-  #print(a)
-  #}
 
 
 ### TEMPERATURA AO LONGO DO TEMPO ###
