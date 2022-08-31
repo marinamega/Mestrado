@@ -9,7 +9,7 @@ library(patchwork)
 ### DIRETÓRIO ###
 setwd('C:/Users/marin/Documents/Mestrado/Projeto')
 
-mbon_p2p_jul2022 <- readxl::read_xlsx("mbon_p2p_jul2022.xlsx")
+mbon_p2p_jul2022 <- readxl::read_xlsx("mbon_p2p_jul2022.xlsx") #chamando dataframe
 
 ### VERIFICANDO OS GRUPOS MAIS REPRESENTATIVOS ###
 
@@ -24,7 +24,7 @@ ggplot(aes(x=type_cover, y=relative_cover)) +
   facet_grid(tideHeight ~ locality ) +
   theme(axis.text.x = element_text(angle = 90))
 
-plotcov
+plotcov #plotando as coberturas mais representativas 
 
 plotmot<- mbon_p2p_jul2022 %>% 
   filter(density_025m2 >= 50, ##coloquei 50 mas no gráfico o eixo y ta estranho
@@ -34,9 +34,9 @@ plotmot<- mbon_p2p_jul2022 %>%
   facet_grid(tideHeight ~ locality ) +
   theme(axis.text.x = element_text(angle = 90))
 
-plotmot
+plotmot #plotando os móveis mais representativos
 
-plotcov + plotmot
+plotcov + plotmot #unificando plots em um só
 
 #mais abundantes
 cover <- c("Amphiroa", "bare rock", "Chthamalus bisinuatus", "Jania", "Lithophyllum", "Mytilaster solisianus", "Tetraclita stalactifera", "Ulva fasciata", "Willeella brachyclados")
