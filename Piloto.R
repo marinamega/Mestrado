@@ -7,7 +7,7 @@ library(ggplot2)
 #install.packages('esquisser') #atualizar versão do R
 #library(esquisser)
 
-set2022 <- read_excel('C:/Users/marin/Documents/Mestrado/Projeto/Mestrado/Set2022.xlsx',
+set2022 <- read_excel('Set2022.xlsx',
                       sheet = 'Planilha1') #chamando dataframe
 
 set2022$data <- as.Date(set2022$data, format = "%d_%m_%Y") #transformando data em data
@@ -32,10 +32,12 @@ freq_data %>%
 #Tamanho ao longo do tempo
 set2022 %>%
   filter(!set2022$cor %in% "vermelho",
-         !tamanho_mm %in% NA) %>% 
-  ggplot(aes(x=data, y=tamanho_mm)) +
-  geom_point(size = 1) +
-  geom_path(aes(group = ID), color="gray79") +
+         !tamanho_mm %in% NA,
+         data != '2022-08-26', data > '2022-08-01') %>% 
+  ggplot(aes(x=as.factor(data), y=tamanho_mm)) +
+  geom_boxplot() +
+  # geom_point(size = 1) +
+  # geom_path(aes(group = ID), color="gray79") +
   stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
   theme_bw()
                  
@@ -58,3 +60,38 @@ set2022 %>%  #queria filtrar pelas duas ultimas datas, mas não to sabendo mexer
   geom_jitter(color="black", size=0.4, alpha=0.9) +
   theme_ipsum() +
   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+
+set2022 %>% 
+  select(-cor) %>% 
+  filter(!is.na(tamanho_mm),
+         data > "2022-08-25") %>%
+  arrange(data, ID) %>% 
+  mutate(diff_row = tamanho_mm - lag(tamanho_mm))
+
+
+set2022 %>% 
+  select(-cor) %>% 
+  filter(!is.na(tamanho_mm)) %>%
+  arrange(ID, data) %>%
+  group_by(ID) %>%
+  filter(n()>=2,
+         data > "2022-08-01") %>% 
+  mutate(diff_row = tamanho_mm - lag(tamanho_mm)) %>% 
+  data.frame() %>% 
+  mutate(diff = ifelse(diff_row > 0, "cresceu", 
+                       ifelse(diff_row < 0, "encolheu", NA))) %>% 
+  group_by(diff) %>% 
+  summarise(med_dif = mean(diff_row),
+            sd_dif = sd(diff_row),
+            N = n_distinct(diff_row))
+
+# DIFFERENCE BETWEEN VISIT BY PATIENT ------------------------------------- 
+set2022 %>% 
+  select(-cor) %>% 
+  filter(!is.na(tamanho_mm),
+         data > "2022-08-01") %>%
+  arrange(ID, data) %>%
+  group_by(ID) %>%
+  filter(n()>=2) %>% 
+  mutate(diffDate = difftime(data, lag(data,1)) / 86400) %>% 
+  ungroup()
