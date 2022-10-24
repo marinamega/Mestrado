@@ -27,7 +27,7 @@ plotcov<- entremares %>%
   filter(relative_cover >= 50) %>% ##coloquei 50 mas no grÃ¡fico o eixo y ta estranho
 ggplot(aes(x=type_cover, y=relative_cover)) + 
   geom_bar(stat = "identity") +
-  ggtitle("a) organismos sésseis")+
+  ggtitle("a) organismos s?sseis")+
   xlab("tipo de cobertura") +
   ylab("cobertura")+
   facet_grid(tideHeight ~ locality ) +
@@ -40,7 +40,7 @@ plotmot<- entremares %>%
          !density_025m2 %in% NA) %>%
   ggplot(aes(x=motile, y=density_025m2)) + 
   geom_bar(stat = "identity") +
-  ggtitle("b) organismos móveis")+
+  ggtitle("b) organismos m?veis")+
   xlab("organismos") +
   ylab("densidade")+
   facet_grid(tideHeight ~ locality ) +
@@ -124,7 +124,7 @@ library(lubridate)
 library(scales)
 library(heatwaveR)
 
-temperatura <- read.csv("C:/Users/marin/Documents/Mestrado/Projeto/temperatura_arraial_entremares_2019-2022 base.csv", sep = ';') %>% 
+temperatura <- read.csv("C:/Users/marin/Documents/Mestrado/Projeto/temp_arraial_entremares_out2022.csv", sep = ',') %>% 
   dplyr::rename(dia_hora = 'time') %>% 
   mutate(dia_hora = as.POSIXct(dia_hora), 
          mes = month(dia_hora),
