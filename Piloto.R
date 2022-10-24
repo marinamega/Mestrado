@@ -32,22 +32,61 @@ freq_data %>%
 #data bugada
 
 #Tamanho ao longo do tempo
-prainha %>%
+total<- prainha %>%
   filter(!prainha$cor %in% "vermelho",
          !tamanho_mm %in% NA,
          data != '2022-08-26', data > '2022-08-01') %>% 
   ggplot(aes(x=as.factor(data), y=tamanho_mm)) +
   geom_boxplot() +
+  ggtitle("a) todas as classes de tamanho")+
+  xlab("campanha")+
+  ylab("tamanho (mm)")+
   # geom_point(size = 1) +
   # geom_path(aes(group = ID), color="gray79") +
   stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
   theme_bw()
-                 
+
+men14<- prainha %>%
+  filter(!prainha$cor %in% "vermelho",
+         !tamanho_mm %in% NA,
+         data != '2022-08-26', data > '2022-08-01',
+         tamanho_mm < 14) %>% 
+  ggplot(aes(x=as.factor(data), y=tamanho_mm)) +
+  geom_boxplot() +
+  ggtitle("b) menores do que 14mm")+
+  xlab("campanha")+
+  ylab("tamanho (mm)")+
+  # geom_point(size = 1) +
+  # geom_path(aes(group = ID), color="gray79") +
+  stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
+  theme_bw()
+
+mais14<- prainha %>%
+  filter(!prainha$cor %in% "vermelho",
+         !tamanho_mm %in% NA,
+         data != '2022-08-26', data > '2022-08-01',
+         tamanho_mm >= 14) %>% 
+  ggplot(aes(x=as.factor(data), y=tamanho_mm)) +
+  geom_boxplot() +
+  ggtitle("c) maiores ou igual a 14mm")+
+  xlab("campanha")+
+  ylab("tamanho (mm)")+
+  # geom_point(size = 1) +
+  # geom_path(aes(group = ID), color="gray79") +
+  stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
+  theme_bw()
+
+total + men14 + mais14
+
 prainha %>%
   filter(!prainha$cor %in% "vermelho",
          !prainha$data %in% c("2022_07_27", "2022_07_28"),
-         !tamanho_mm %in% NA) %>% 
+         !tamanho_mm %in% NA,
+         tamanho_mm < 14) %>% 
   ggplot(aes(x=data, y=tamanho_mm)) +
+  ggtitle("Crescimento dos indiv�duos de Lottia subrugosa")+
+  xlab("campanha")+
+  ylab("tamanho (mm)")+
   geom_point(size = 1) +
   geom_path(aes(group = ID), color="gray79") +
   stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
@@ -55,7 +94,8 @@ prainha %>%
 
 prainha %>%  #queria filtrar pelas duas ultimas datas, mas não to sabendo mexer com data em posicxt
   filter(!prainha$cor %in% "vermelho",
-         !tamanho_mm %in% NA) %>%
+         !tamanho_mm %in% NA,
+         tamanho_mm > 14) %>%
   ggplot( aes(x=ID, y=tamanho_mm)) +
   geom_boxplot() +
   scale_fill_viridis(discrete = TRUE, alpha=0.6) +
@@ -117,3 +157,4 @@ freq_data_pg %>%
   ggplot(aes(x=data, y=n)) + 
   geom_bar(stat = "identity") #plotando gráfico de barra com o número de capturados por dia
 #data bugada
+

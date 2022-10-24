@@ -7,30 +7,42 @@ library(readxl)
 library(patchwork)
 
 ### DIRETÓRIO ###
-setwd('C:/Users/marin/Documents/Mestrado/Projeto')
+setwd('C:/Users/marin/Documents/Mestrado/Projeto/')
 
-mbon_p2p_jul2022 <- readxl::read_xlsx("mbon_p2p_Aug2021.xlsx") #chamando dataframe
+entremares <- readxl::read_xlsx("mbon_p2p_out2022.xlsx") #chamando dataframe
 
 ### VERIFICANDO OS GRUPOS MAIS REPRESENTATIVOS ###
 
 #verificando se não há repetições/erros de digitação
-unique(mbon_p2p_jul2022$type_cover)
-unique(mbon_p2p_jul2022$motile)
+unique(entremares$type_cover)
+unique(entremares$motile)
 
-plotcov<- mbon_p2p_jul2022 %>%
+entremares$relative_cover<- as.numeric(entremares$relative_cover)
+str(entremares$relative_cover)
+
+entremares$density_025m2<- as.numeric(entremares$density_025m2)
+str(entremares$density_025m2)
+
+plotcov<- entremares %>%
   filter(relative_cover >= 50) %>% ##coloquei 50 mas no gráfico o eixo y ta estranho
 ggplot(aes(x=type_cover, y=relative_cover)) + 
   geom_bar(stat = "identity") +
+  ggtitle("a) organismos s�sseis")+
+  xlab("tipo de cobertura") +
+  ylab("cobertura")+
   facet_grid(tideHeight ~ locality ) +
   theme(axis.text.x = element_text(angle = 90))
 
 plotcov #plotando as coberturas mais representativas 
 
-plotmot<- mbon_p2p_jul2022 %>% 
-  filter(density_025m2 >= 50, ##coloquei 50 mas no gráfico o eixo y ta estranho
+plotmot<- entremares %>% 
+  filter(density_025m2 >= 10, ##coloquei 10 mas no gráfico o eixo y ta estranho
          !density_025m2 %in% NA) %>%
   ggplot(aes(x=motile, y=density_025m2)) + 
   geom_bar(stat = "identity") +
+  ggtitle("b) organismos m�veis")+
+  xlab("organismos") +
+  ylab("densidade")+
   facet_grid(tideHeight ~ locality ) +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -38,14 +50,15 @@ plotmot #plotando os móveis mais representativos
 
 plotcov + plotmot #unificando plots em um só
 
+
 #mais abundantes
-cover <- c("Amphiroa", "bare rock", "Chthamalus bisinuatus", "Jania", "Lithophyllum", "Mytilaster solisianus", "Tetraclita stalactifera", "Ulva fasciata", "Willeella brachyclados")
+cover <- c("Amphiroa", "Bare rock", "Chthamalus bisinuatus", "Jania", "Lithophyllum", "Mytilaster solisianus", "Tetraclita stalactifera", "Ulva fasciata", "Willeella brachyclados")
 motile <- c("Echinolittorina lineolata", "Fissurella rosea", "Lottia subrugosa", "Stramonita haemastoma")
 
 ### DENSIDADE/COBERTURA AO LONGO DO TEMPO ###
 #cobertura
 for(i in cover) {
-  a <- mbon_p2p_jul2022 %>% 
+  a <- entremares %>% 
     filter(!relative_cover %in% c("?", "X"),
            type_cover == i) %>% 
     mutate(relative_cover = as.numeric(relative_cover),
@@ -56,6 +69,8 @@ for(i in cover) {
     ggplot(aes(x=data, y=relative_cover, group = data)) +
     geom_boxplot(shape=21, color="black", fill="#69b3a2") +
     ggtitle(i) +
+    xlab("data") +
+    ylab("cobertura relativa")+
     facet_grid(tideHeight ~ locality ) +
     theme_classic() +
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
@@ -83,7 +98,7 @@ for(i in cover) {
 
 #móveis
 for(e in motile) {
-  b <- mbon_p2p_jul2022 %>% 
+  b <- entremares %>% 
     filter(!density_025m2 %in% c("?", "X"),
            !motile %in% NA,
            motile == e) %>% 
@@ -95,6 +110,8 @@ for(e in motile) {
     ggplot(aes(x=data, y=density_025m2, group = data)) +
     geom_boxplot(shape=21, color="black", fill="#69b3a2") +
     ggtitle(e) +
+    xlab("data") +
+    ylab("densidade")+
     facet_grid(tideHeight ~ locality ) +
     theme_classic() +
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5)) 
@@ -107,7 +124,7 @@ library(lubridate)
 library(scales)
 library(heatwaveR)
 
-temperatura <- read.csv("~/Meu Drive/LECAR/dados/Arraial/abioticos/temperatura/Temperaturas_AC/entremares/temperatura_arraial_entremares_2019-2022.csv") %>% 
+temperatura <- read.csv("C:/Users/marin/Documents/Mestrado/Projeto/temperatura_arraial_entremares_2019-2022 base.csv", sep = ';') %>% 
   dplyr::rename(dia_hora = 'time') %>% 
   mutate(dia_hora = as.POSIXct(dia_hora), 
          mes = month(dia_hora),
@@ -191,17 +208,41 @@ temperatura %>%
 #   summarise(media = mean(temp),
 #             sd = sd(temp)) %>% 
 #   data.frame
+temp<- temperatura
+temp<- temp %>% 
+  separate(dia_hora, c('ano', 'mes', 'dia', 'hora', 'min', 'seg'))
+temp$dia <- paste(temp$dia,temp$mes, temp$ano, sep = "_")
+temp<- temp[-(1:2)]
+#temp$hora <- paste(temp$hora,temp$min, temp$seg, sep = ":")
+#temp<- temp[-(4:5)]
+
+str(temp$dia)
+temp$dia<- as.Date(temp$dia, format = "%d_%m_%Y")
+str(temp$dia)
 
 temp %>% 
-  rename(dia_hora = 'time') %>% 
-  mutate(dia_hora = as.Date(dia_hora),
+  mutate(temp$dia = as.Date(dia),
+         sensor = factor(sensor, levels = c("sun", "shade"))) %>%
+  ggplot(temp, aes(x= dia, y = temp, group = dia)) +
+  geom_point(aes(color = sensor)) +
+  facet_wrap(site ~ sensor) +
+  geom_boxplot(shape=21, outlier.shape = NA) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+
+
+
+## ERROO
+temp %>% 
+  mutate(temp$dia_hora = as.Date(dia_hora),
          sensor = factor(sensor, levels = c("sun", "shade"))) %>% 
-  ggplot(aes(x = dia_hora, y = temp, group = dia_hora)) +
+  ggplot(temp, aes(x = dia_hora, y = temp, group = dia_hora)) +
     geom_point(aes(color = sensor)) +
     facet_wrap(sensor ~. ) +
     geom_boxplot(shape=21, outlier.shape = NA) + 
     theme_classic() +
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
+
 
 # MEDIA POR HORA INDEPENDENTE DO MES OU DIA
 
