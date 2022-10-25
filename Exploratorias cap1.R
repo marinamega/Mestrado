@@ -9,7 +9,7 @@ library(patchwork)
 ### DIRETÓRIO ###
 setwd('C:/Users/marin/Documents/Mestrado/Projeto/')
 
-entremares <- readxl::read_xlsx("mbon_p2p_out2022.xlsx") #chamando dataframe
+entremares <- readxl::read_xlsx("mbon_p2p_Aug2021.xlsx") #chamando dataframe
 
 ### VERIFICANDO OS GRUPOS MAIS REPRESENTATIVOS ###
 
@@ -23,29 +23,37 @@ str(entremares$relative_cover)
 entremares$density_025m2<- as.numeric(entremares$density_025m2)
 str(entremares$density_025m2)
 
-plotcov<- entremares %>%
+plotcov <- entremares %>%
+  mutate(tideHeight = recode(tideHeight, "high" = "superior", "mid" = "intermediário", "low" = "inferior") %>% 
+           factor(., levels = c("superior","intermediário","inferior"))) %>% 
   filter(relative_cover >= 50) %>% ##coloquei 50 mas no gráfico o eixo y ta estranho
-ggplot(aes(x=type_cover, y=relative_cover)) + 
-  geom_bar(stat = "identity") +
-  ggtitle("a) organismos s?sseis")+
-  xlab("tipo de cobertura") +
-  ylab("cobertura")+
-  facet_grid(tideHeight ~ locality ) +
-  theme(axis.text.x = element_text(angle = 90))
+  ggplot(aes(x=type_cover, y=relative_cover)) + 
+    geom_boxplot() +
+    # geom_bar(stat = "identity") +
+    ggtitle("a) organismos sésseis")+
+    xlab("tipo de cobertura") +
+    ylab("cobertura relativa (%)")+
+    facet_grid(tideHeight ~ locality, scales = "free_y") +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, face = "italic")) 
 
 plotcov #plotando as coberturas mais representativas 
 
-plotmot<- entremares %>% 
+plotmot <- entremares %>% 
+  mutate(tideHeight = recode(tideHeight, "high" = "superior", "mid" = "intermediário", "low" = "inferior") %>% 
+           factor(., levels = c("superior","intermediário","inferior"))) %>%
   filter(density_025m2 >= 10, ##coloquei 10 mas no gráfico o eixo y ta estranho
          !density_025m2 %in% NA) %>%
   ggplot(aes(x=motile, y=density_025m2)) + 
-  geom_bar(stat = "identity") +
-  ggtitle("b) organismos m?veis")+
-  xlab("organismos") +
-  ylab("densidade")+
-  facet_grid(tideHeight ~ locality ) +
-  theme(axis.text.x = element_text(angle = 90))
-
+    # geom_bar(stat = "identity") +
+    geom_boxplot() +
+    ggtitle("b) organismos móveis")+
+    xlab("organismos") +
+    ylab(expression("densidade (ind.0,25"~ m^-2~ ")")) +
+    facet_grid(tideHeight ~ locality, scales = "free_y" ) + 
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, face = "italic"))
+    
 plotmot #plotando os móveis mais representativos
 
 plotcov + plotmot #unificando plots em um só
