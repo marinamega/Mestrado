@@ -44,7 +44,7 @@ total<- prainha %>%
   # geom_point(size = 1) +
   # geom_path(aes(group = ID), color="gray79") +
   stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
-  theme_bw()
+  theme_classic()
 
 men14<- prainha %>%
   filter(!prainha$cor %in% "vermelho",
@@ -59,7 +59,7 @@ men14<- prainha %>%
   # geom_point(size = 1) +
   # geom_path(aes(group = ID), color="gray79") +
   stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
-  theme_bw()
+  theme_classic()
 
 mais14<- prainha %>%
   filter(!prainha$cor %in% "vermelho",
@@ -74,7 +74,7 @@ mais14<- prainha %>%
   # geom_point(size = 1) +
   # geom_path(aes(group = ID), color="gray79") +
   stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
-  theme_bw()
+  theme_classic()
 
 total + men14 + mais14
 
@@ -84,13 +84,13 @@ prainha %>%
          !tamanho_mm %in% NA,
          tamanho_mm < 14) %>% 
   ggplot(aes(x=data, y=tamanho_mm)) +
-  ggtitle("Crescimento dos indiv�duos de Lottia subrugosa")+
+  ggtitle("Crescimento dos indiv?duos de Lottia subrugosa")+
   xlab("campanha")+
   ylab("tamanho (mm)")+
   geom_point(size = 1) +
   geom_path(aes(group = ID), color="gray79") +
   stat_summary(fun=mean, geom="line", color="dodgerblue3", aes(group=1), size=1) +
-  theme_bw()
+  theme_classic()
 
 prainha %>%  #queria filtrar pelas duas ultimas datas, mas não to sabendo mexer com data em posicxt
   filter(!prainha$cor %in% "vermelho",
@@ -151,7 +151,7 @@ pg$tamanho_mm <- as.numeric(pg$tamanho_mm) #transformando tamanho em numérico
 str(pg$tamanho_mm)
 
 #Marcação e Recaptura
-freq_data_pg<- count(pg, data) #contando frequência das datas
+freq_data_pg <- count(pg, data) #contando frequência das datas
 
 freq_data_pg %>%
   ggplot(aes(x=data, y=n)) + 
