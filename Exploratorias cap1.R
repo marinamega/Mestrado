@@ -132,7 +132,7 @@ library(lubridate)
 library(scales)
 library(heatwaveR)
 
-temperatura <- read.csv("C:/Users/marin/Documents/Mestrado/Projeto/temp_arraial_entremares_out2022.csv", sep = ',') %>% 
+temperatura <- read.csv("temp_arraial_entremares_out2022.csv", sep = ',') %>% 
   dplyr::rename(dia_hora = 'time') %>% 
   mutate(dia_hora = as.POSIXct(dia_hora), 
          mes = month(dia_hora),
@@ -141,7 +141,9 @@ temperatura <- read.csv("C:/Users/marin/Documents/Mestrado/Projeto/temp_arraial_
          sensor = recode(sensor, " Fortshade" = "sombra",
                          " Fortsun" = "sol",
                          " PG_SHADE" = "sombra",
-                         " PG_SUN" = "sol")) %>% 
+                         " PG_SUN" = "sol",
+                         "PG_SHADE" = "sombra",
+                         "PG_SUN" = "sol")) %>% 
   mutate(season = case_when(mes %in% 1:3 ~ "verao",
                             mes %in% 4:6 ~ "outono",
                             mes %in% 7:9 ~ "inverno",
@@ -229,22 +231,21 @@ temp$dia<- as.Date(temp$dia, format = "%d_%m_%Y")
 str(temp$dia)
 
 temp %>% 
-  mutate(temp$dia = as.Date(dia),
-         sensor = factor(sensor, levels = c("sun", "shade"))) %>%
-  ggplot(temp, aes(x= dia, y = temp, group = dia)) +
-  geom_point(aes(color = sensor)) +
-  facet_wrap(site ~ sensor) +
-  geom_boxplot(shape=21, outlier.shape = NA) + 
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
-
+  mutate(dia = as.Date(dia),
+         sensor = factor(sensor, levels = c("sol", "sombra"))) %>%
+  ggplot(aes(x= dia, y = temp, group = dia)) +
+    geom_point(aes(color = sensor)) +
+    facet_wrap(site ~ sensor) +
+    geom_boxplot(shape=21, outlier.shape = NA) + 
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0.5))
 
 
 ## ERROO
 temp %>% 
-  mutate(temp$dia_hora = as.Date(dia_hora),
-         sensor = factor(sensor, levels = c("sun", "shade"))) %>% 
-  ggplot(temp, aes(x = dia_hora, y = temp, group = dia_hora)) +
+  mutate(dia_hora = as.Date(dia_hora),
+         sensor = factor(sensor, levels = c("sol", "sombra"))) %>% 
+  ggplot(aes(x = dia_hora, y = temp, group = dia_hora)) +
     geom_point(aes(color = sensor)) +
     facet_wrap(sensor ~. ) +
     geom_boxplot(shape=21, outlier.shape = NA) + 
@@ -255,14 +256,14 @@ temp %>%
 # MEDIA POR HORA INDEPENDENTE DO MES OU DIA
 
 temp %>%
-  rename(dia_hora = 'time') %>% 
+  rename(time = "dia_hora") %>% 
   mutate(mes = month(dia_hora),
          hora = lubridate::hour(dia_hora),
          ano = year(dia_hora)) %>%
-  mutate(season = case_when(mes %in% 1:3 ~ "verao",
-                            mes %in% 4:6 ~ "outono",
-                            mes %in% 7:9 ~ "inverno",
-                            TRUE ~ "primavera")) %>% 
+  # mutate(season = case_when(mes %in% 1:3 ~ "verao",
+  #                           mes %in% 4:6 ~ "outono",
+  #                           mes %in% 7:9 ~ "inverno",
+  #                           TRUE ~ "primavera")) %>% 
   ggplot(aes(x = hora, y = temp, group = hora)) +
     geom_point(aes(color = sensor)) +
     facet_grid(season + ano ~ sensor) +
@@ -319,7 +320,10 @@ temperatura %>%
     facet_grid(site + season ~ sensor) +
     # geom_boxplot(shape=21, outlier.shape = NA) + 
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
+    theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5),
+          legend.position = "") +
+    labs(y = expression("temperatura ("~ degree~ "C)"),
+         x = "hora do dia")
 
 #
 temperatura %>% 
@@ -327,11 +331,14 @@ temperatura %>%
     geom_boxplot(shape=21) + 
     theme_classic() +
     facet_grid(~ site) +
-    theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
+    theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5),
+          legend.title = element_blank()) +
+    labs(y = expression("temperatura ("~ degree~ "C)"),
+       x = "estação do ano")
   
 
 # valores
-temp_intertidal %>%
+temperatura %>%
   group_by(site, season, sensor) %>% 
   dplyr::summarise(varicao = range(temp, na.rm =T)) %>% 
   data.frame()
