@@ -316,13 +316,12 @@ temp %>%
 #
 temperatura %>% 
   ggplot(aes(x = hora, y = temp, group = hora)) +
-    geom_point(aes(color = sensor)) +
-    facet_grid(site + season ~ sensor) +
-    # geom_boxplot(shape=21, outlier.shape = NA) + 
+    # geom_point(aes(color = sensor)) +
+    facet_grid(sensor + site ~ season) +
+    geom_boxplot(shape=21, aes(color = sensor), outlier.size = 0.1) +
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5),
-          legend.position = "") +
-    labs(y = expression("temperatura ("~ degree~ "C)"),
+    theme(legend.position = "") +
+    labs(y = expression("temperatura ("~ degree~"C)"),
          x = "hora do dia")
 
 #
