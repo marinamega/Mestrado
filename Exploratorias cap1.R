@@ -137,6 +137,7 @@ temperatura <- read.csv('temp_arraial_jan2023.csv', sep = ',') %>%
   mutate(date_time = as.POSIXct(date_time), 
          mes = month(date_time),
          hora = lubridate::hour(date_time),
+         data = lubridate::date(date_time),
          ano = year(date_time),
          sensor = recode(sensor, " Fortshade" = "sombra",
                          " Fortsun" = "sol",
@@ -150,8 +151,14 @@ temperatura <- read.csv('temp_arraial_jan2023.csv', sep = ',') %>%
                             TRUE ~ "primavera") %>% 
            factor(., levels = c("primavera", "verao", "outono", "inverno"))) 
 
+temp_resumo<- temperatura %>% 
+  group_by(data, sensor, site, season) %>% 
+  dplyr::summarise(tmean = mean(temp, na.rm = TRUE),
+         tmin = min(temp, na.rm = TRUE),
+         tmax = max(temp, na.rm = TRUE))
+
 # Calculando o 90º percentil de cada mês
-maxis <- temperatura %>% 
+  maxis <- temperatura %>% 
   group_by(mes) %>% 
   dplyr::summarise(extremo = quantile(temp, probs = 0.9, na.rm = T))
 
@@ -203,6 +210,12 @@ temperatura %>%
   group_by(site, season, sensor, sensor_stress) %>% 
   dplyr::summarise(varicao = range(temp, na.rm =T)) %>% 
   data.frame()
+
+
+temp_resumo$sensor_stress[temp_resumo$sensor == 'FORTSHADE'] <- 'sombra'
+temp_resumo$sensor_stress[temp_resumo$sensor == 'FORTSUN'] <- 'sol'
+temp_resumo$sensor_stress[temp_resumo$sensor == 'PGSHADE'] <- 'sombra'
+temp_resumo$sensor_stress[temp_resumo$sensor == 'PGSUN'] <- 'sol'
 
 # temperatura ao longo do dia sol X sombra
 temperatura %>% 
@@ -597,3 +610,81 @@ ggplot(out, aes(x= date_peak, y= intensity_max)) +
    geom_lolli(aes(colour = intensity_mean)) +
    scale_color_distiller(palette = "Spectral", name = "intensity mean") +
    xlab("Date") + ylab("intensity_max")
+
+ 
+ ######################### 03/03/2023
+ #### O que usar? tmax, tmin ou tmean <- talvez seja bom ver no modelo o que afeta mais
+ ### mesma problematica, usar tudo ou separar pg e ft...
+ #sazonalidade
+pg2 <- temp_resumo %>% 
+  filter(site == "Praia Grande")
+
+max(pg2$data)
+min(pg2$data)
+
+ft2<- temp_resumo %>% 
+  filter(site == 'Fortaleza')
+
+max(ft2$data)
+min(ft2$data)
+
+#sazonalidade 
+# geral
+ts2_2<- ts2clm(
+  temp_resumo,
+  x = data,
+  y = tmax,
+  climatologyPeriod = c("2019-06-16", "2022-09-08"),
+  robust = FALSE,
+  maxPadLength = FALSE,
+  windowHalfWidth = 5,
+  pctile = 90,
+  smoothPercentile = TRUE,
+  smoothPercentileWidth = 31,
+  clmOnly = FALSE,
+  var = FALSE,
+  roundClm = 4
+) 
+
+ggplot(ts2_2, aes(x=data, y=tmax)) +
+  geom_line()
+
+# Fortaleza
+ft2_ts2<- ts2clm(
+   ft2,
+   x = data,
+   y = tme,
+   climatologyPeriod = c("2019-06-16", "2022-07-30"),
+   robust = FALSE,
+   maxPadLength = FALSE,
+   windowHalfWidth = 5,
+   pctile = 90,
+   smoothPercentile = TRUE,
+   smoothPercentileWidth = 31,
+   clmOnly = FALSE,
+   var = FALSE,
+   roundClm = 4
+ ) 
+ 
+ ggplot(ft2_ts2, aes(x=data, y=tmax)) +
+   geom_line()
+ 
+ detect_ft2<- detect_event(
+   ft2_ts2,
+   x = data,
+   y = tmax,
+   seasClim = seas,
+   threshClim = thresh,
+   threshClim2 = NA,
+   minDuration = 5,
+   minDuration2 = minDuration,
+   joinAcrossGaps = TRUE,
+   maxGap = 2,
+   maxGap2 = maxGap,
+   coldSpells = FALSE,
+   protoEvents = FALSE,
+   categories = FALSE,
+   roundRes = 4)
+ 
+ out2<- detect_ft2$event
+ 
