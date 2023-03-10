@@ -10,7 +10,7 @@ library(patchwork)
 setwd('C:/Users/marin/Documents/Mestrado/Projeto/')
 
 #chamando dataframe
-entremares <- readxl::read_xlsx("mbon_p2p_out2022.xlsx")
+entremares <- readxl::read_xlsx("monit_entremares_jan2023.xlsx")
 
 ### GRUPOS MAIS REPRESENTATIVOS ###
 
@@ -151,11 +151,6 @@ temperatura <- read.csv('temp_arraial_jan2023.csv', sep = ',') %>%
                             TRUE ~ "primavera") %>% 
            factor(., levels = c("primavera", "verao", "outono", "inverno"))) 
 
-temp_resumo<- temperatura %>% 
-  group_by(data, sensor, site, season) %>% 
-  dplyr::summarise(tmean = mean(temp, na.rm = TRUE),
-         tmin = min(temp, na.rm = TRUE),
-         tmax = max(temp, na.rm = TRUE))
 
 # Calculando o 90º percentil de cada mês
   maxis <- temperatura %>% 
@@ -211,12 +206,6 @@ temperatura %>%
   dplyr::summarise(varicao = range(temp, na.rm =T)) %>% 
   data.frame()
 
-
-temp_resumo$sensor_stress[temp_resumo$sensor == 'FORTSHADE'] <- 'sombra'
-temp_resumo$sensor_stress[temp_resumo$sensor == 'FORTSUN'] <- 'sol'
-temp_resumo$sensor_stress[temp_resumo$sensor == 'PGSHADE'] <- 'sombra'
-temp_resumo$sensor_stress[temp_resumo$sensor == 'PGSUN'] <- 'sol'
-
 # temperatura ao longo do dia sol X sombra
 temperatura %>% 
   ggplot(aes(x = hora, y = temp, color = sensor_stress, group = hora)) +
@@ -236,9 +225,6 @@ temperatura %>%
   xlab("Estação do Ano") +
   ylab("Temperatura (ºC)")+
   theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
-
-#queria separar por estações para ver o 90º percentil apenas durante o verão. Ou não?
-#tem que ver se em algum momento teve acima do 90º percentil por mais de 5 dias.
 
 #### CONFERINDO SE FALTAM DADOS #### 
 ### NAO APAGAR, USAR SEMPRE PARA CONFERIR ###
@@ -280,6 +266,9 @@ temperatura %>%
 #### separar por site? nao separar sol e sombra?
 #### Testando o heat wave package
 
+
+### DADOS POR HORA: sobreposição de eventos.
+
 ## PRAIA GRANDE
 pg<- temperatura %>% 
   filter(temperatura$site == 'Praia Grande') %>% 
@@ -290,7 +279,32 @@ ft<- temperatura %>%
   filter(temperatura$site == 'Fortaleza') %>% 
   mutate(date_time = as.Date(date_time))
 
-#sazonalidade
+##CLIMATOLOGIA
+# geral
+ts2_geral<- ts2clm(
+  temperatura,
+  x = data,
+  y = temp,
+  climatologyPeriod = c("2019-06-16", "2022-09-08"),
+  robust = FALSE,
+  maxPadLength = FALSE,
+  windowHalfWidth = 5,
+  pctile = 90,
+  smoothPercentile = TRUE,
+  smoothPercentileWidth = 31,
+  clmOnly = FALSE,
+  var = FALSE,
+  roundClm = 4
+) 
+
+Arraial<- ggplot(ts2_geral, aes(x=data, y=temp)) +
+  geom_line()+
+  xlab("Data") +
+  ylab("Temperatura (ºC)") +
+  ggtitle("Climatologia Arraial do Cabo")
+
+Arraial
+
 #Fortaleza
 ft %>% 
   filter(date_time == min(date_time))
@@ -316,8 +330,13 @@ ts2_ft<- ts2clm(
   roundClm = 4
 ) 
 
-ggplot(ts2_ft, aes(x=date_time, y=temp)) +
-  geom_line()
+Fortaleza<- ggplot(ts2_ft, aes(x=date_time, y=temp)) +
+  geom_line() +
+  xlab("Data") +
+  ylab("Temperatura (ºC)") +
+  ggtitle("Climatologia Fortaleza")
+
+Fortaleza
 
 #Praia Grande
 # nao temos 3 anos de dados
@@ -346,8 +365,32 @@ ggplot(ts2_ft, aes(x=date_time, y=temp)) +
 #ggplot(ts2_pg, aes(x=date_time, y=temp)) +
 #  geom_line()
 
-# detecção de ondas de calor
+Arraial + Fortaleza
+
+## DETECÇÃO DOS EVENTOS DE ONDAS DE CALOR
 # eventos sobrepostos... esquisito. Por que? Como resolver?
+# Geral
+detect_geral<- detect_event(
+  ts2_geral,
+  x = data,
+  y = temp,
+  seasClim = seas,
+  threshClim = thresh,
+  threshClim2 = NA,
+  minDuration = 5,
+  minDuration2 = minDuration,
+  joinAcrossGaps = TRUE,
+  maxGap = 2,
+  maxGap2 = maxGap,
+  coldSpells = FALSE,
+  protoEvents = FALSE,
+  categories = FALSE,
+  roundRes = 4)
+
+event_geral<- detect_geral$event
+climatology_geral<- detect_geral$climatology
+
+# Fortaleza
 detect_ft<- detect_event(
   ts2_ft,
   x = date_time,
@@ -368,7 +411,24 @@ detect_ft<- detect_event(
 event_ft<- detect_ft$event
 climatology_ft<- detect_ft$climatology
 
-# Calculando médias anuais
+# CALCULANDO MÉDIAS ANUAIS
+# Geral
+yearmean_geral<- block_average(detect_geral, x = data, y = temp, report = "full")
+
+summary(glm(count ~ year, yearmean_geral, family = "poisson")) #preciso entender melhor
+glm(formula = count ~ year, family = "poisson", data = yearmean_geral) #preciso entender melhor
+
+ ggplot(data = yearmean_geral, aes(x = year, y = count)) +  ##número de eventos
+  geom_point(colour = "blue") +
+  geom_line() +
+  labs(x = NULL, y = "Número de eventos (Arraial do Cabo)")
+
+ ggplot(data = yearmean_geral, aes(x = year, y = intensity_cumulative)) +   ### intensidade cumulativa
+  geom_point(colour = "salmon") +
+  geom_line() +
+  labs(x = NULL, y = "Intensidade cumulativa (Arraial do Cabo)")
+
+# Fortaleza
 yearmean_ft<- block_average(detect_ft, x = date_time, y = temp, report = "full")
 
 summary(glm(count ~ year, yearmean_ft, family = "poisson")) #preciso entender melhor
@@ -469,153 +529,179 @@ ggplot(event_ft, aes(x = date_peak, y = intensity_max)) +      #duração e inte
 
 ###28/02/2023 - separado sol e sombra
 ### Sazonalidade
-serie_ftsun<- ts2clm(
-  ft_sun,
-  x = date_time,
-  y = temp,
-  climatologyPeriod = c("2019-06-16", "2022-07-30"),
-  robust = FALSE,
-  maxPadLength = FALSE,
-  windowHalfWidth = 5,
-  pctile = 90,
-  smoothPercentile = TRUE,
-  smoothPercentileWidth = 31,
-  clmOnly = FALSE,
-  var = FALSE,
-  roundClm = 4
-) 
+#serie_ftsun<- ts2clm(
+#  ft_sun,
+#  x = date_time,
+#  y = temp,
+#  climatologyPeriod = c("2019-06-16", "2022-07-30"),
+#  robust = FALSE,
+#  maxPadLength = FALSE,
+#  windowHalfWidth = 5,
+#  pctile = 90,
+#  smoothPercentile = TRUE,
+#  smoothPercentileWidth = 31,
+#  clmOnly = FALSE,
+#  var = FALSE,
+#  roundClm = 4
+#) 
 
-ggplot(serie_ftsun, aes(x=date_time, y=temp)) +
-  geom_line()
+#ggplot(serie_ftsun, aes(x=date_time, y=temp)) +
+#  geom_line()
 
 ### Detectando heatwaves
 # esquisito, pois tem eventos sobrepostos..... mais de um dado por dia. O que usar?
-detect_ftsun<- detect_event(
-  serie_ftsun,
-  x = date_time,
-  y = temp,
-  seasClim = seas,
-  threshClim = thresh,
-  threshClim2 = NA,
-  minDuration = 5,
-  minDuration2 = minDuration,
-  joinAcrossGaps = TRUE,
-  maxGap = 2,
-  maxGap2 = maxGap,
-  coldSpells = FALSE,
-  protoEvents = FALSE,
-  categories = FALSE,
-  roundRes = 4)
+#detect_ftsun<- detect_event(
+#  serie_ftsun,
+#  x = date_time,
+#  y = temp,
+#  seasClim = seas,
+#  threshClim = thresh,
+#  threshClim2 = NA,
+#  minDuration = 5,
+#  minDuration2 = minDuration,
+#  joinAcrossGaps = TRUE,
+#  maxGap = 2,
+#  maxGap2 = maxGap,
+#  coldSpells = FALSE,
+#  protoEvents = FALSE,
+#  categories = FALSE,
+#  roundRes = 4)
 
-out<- detect_ftsun$event
+# out<- detect_ftsun$event
 
 # Calculando médias anuais
-year_mean<- block_average(detect_ftsun, x = date_time, y = temp, report = "full")
+# year_mean<- block_average(detect_ftsun, x = date_time, y = temp, report = "full")
 
-summary(glm(count ~ year, year_mean, family = "poisson")) #preciso entender melhor
-glm(formula = count ~ year, family = "poisson", data = year_mean) #preciso entender melhor
+# summary(glm(count ~ year, year_mean, family = "poisson")) #preciso entender melhor
+#glm(formula = count ~ year, family = "poisson", data = year_mean) #preciso entender melhor
 
-ggplot(data = year_mean, aes(x = year, y = count)) +  ##número de eventos
-  geom_point(colour = "blue") +
-  geom_line() +
-  labs(x = NULL, y = "Número de eventos")
+#ggplot(data = year_mean, aes(x = year, y = count)) +  ##número de eventos
+#  geom_point(colour = "blue") +
+#  geom_line() +
+#  labs(x = NULL, y = "Número de eventos")
 
-ggplot(data = year_mean, aes(x = year, y = intensity_cumulative)) +   ### intensidade cumulativa
-  geom_point(colour = "salmon") +
-  geom_line() +
-  labs(x = NULL, y = "Intensidade cumulativa")
+#ggplot(data = year_mean, aes(x = year, y = intensity_cumulative)) +   ### intensidade cumulativa
+#  geom_point(colour = "salmon") +
+#  geom_line() +
+#  labs(x = NULL, y = "Intensidade cumulativa")
 
 ### Categorizando e contabilizando os heatwaves
 #### ver como fazer separado por anos
-cat_ftsun<- category(
-  detect_ftsun,
-  y = temp,
-  S = TRUE,
-  name = "Event",
-  climatology = FALSE,
-  MCScorrect = F,
-  season = "range",
-  roundVal = 4
-)
+#cat_ftsun<- category(
+#  detect_ftsun,
+#  y = temp,
+#  S = TRUE,
+#  name = "Event",
+#  climatology = FALSE,
+#  MCScorrect = F,
+#  season = "range",
+#  roundVal = 4
+#)
 
-freq_cat<- count(cat_ftsun, category) #contando frequência das categorias
+#freq_cat<- count(cat_ftsun, category) #contando frequência das categorias
 
-freq_cat %>%
-  ggplot(aes(x=category, y=n)) + 
-  geom_bar(stat = "identity") 
+#freq_cat %>%
+#  ggplot(aes(x=category, y=n)) + 
+#  geom_bar(stat = "identity") 
 
 # dias consecutivos acima do limiar
-consecday_ftsun<- exceedance(
-  serie_ftsun,
-  x = date_time,
-  y = temp,
-  threshold = 25.5,
-  below = FALSE,
-  minDuration = 5,
-  joinAcrossGaps = TRUE,
-  maxGap = 2,
-  maxPadLength = FALSE
-)
+#consecday_ftsun<- exceedance(
+#  serie_ftsun,
+#  x = date_time,
+#  y = temp,
+#  threshold = 25.5,
+#  below = FALSE,
+#  minDuration = 5,
+#  joinAcrossGaps = TRUE,
+#  maxGap = 2,
+#  maxPadLength = FALSE
+#)
 
-consecthres<- consecday_ftsun$threshold
-consecexcee<- consecday_ftsun$exceedance
+#consecthres<- consecday_ftsun$threshold
+#consecexcee<- consecday_ftsun$exceedance
 
-consecexcee %>%
-  ggplot(aes(x=exceedance_no, y=duration)) + 
-  geom_bar(stat = "identity") 
+#consecexcee %>%
+#  ggplot(aes(x=exceedance_no, y=duration)) + 
+#  geom_bar(stat = "identity") 
 
 ### gráfico
 # não to conseguindo
 # ERROOOO
-event_line(
-  detect_ftsun,
-  x = date_time,
-  y = temp,
-  metric = duration,
-  min_duration = 5,
-  spread = 150,
-  start_date = '2019-06-16',
-  end_date = '2022-07-30',
-  category = FALSE,
-  x_axis_title = NULL,
-  x_axis_text_angle = NULL,
-  y_axis_title = NULL,
-  y_axis_range = NULL
-)
+#event_line(
+#  detect_ftsun,
+#  x = date_time,
+#  y = temp,
+#  metric = duration,
+#  min_duration = 5,
+#  spread = 150,
+#  start_date = '2019-06-16',
+#  end_date = '2022-07-30',
+#  category = FALSE,
+#  x_axis_title = NULL,
+#  x_axis_text_angle = NULL,
+#  y_axis_title = NULL,
+#  y_axis_range = NULL
+#)
 
-event_line(detect_ftsun, x= climatology$date_time, spread = 100, metric = duration,
-           start_date = "2019-06-16", end_date = "2022-07-30")
+#event_line(detect_ftsun, x= climatology$date_time, spread = 100, metric = duration,
+#           start_date = "2019-06-16", end_date = "2022-07-30")
 
 # Gráfico de pirulito
-ggplot(out, aes(x= date_peak, y= intensity_max)) +
-  geom_point() + 
-  geom_segment( aes(x=date_peak, xend= date_peak, y=0, yend=intensity_max))
+#ggplot(out, aes(x= date_peak, y= intensity_max)) +
+#  geom_point() + 
+#  geom_segment( aes(x=date_peak, xend= date_peak, y=0, yend=intensity_max))
 
- ggplot(out, aes(x = date_peak, y = duration)) +      #duração e intensidade cumulativa
-  geom_lolli(aes(colour = intensity_cumulative)) +
-  scale_color_distiller(palette = "Spectral", name = "Cumulative \nintensity") +
-  xlab("Date") + ylab("Event duration [days]")
+# ggplot(out, aes(x = date_peak, y = duration)) +      #duração e intensidade cumulativa
+#  geom_lolli(aes(colour = intensity_cumulative)) +
+#  scale_color_distiller(palette = "Spectral", name = "Cumulative \nintensity") +
+#  xlab("Date") + ylab("Event duration [days]")
 
- ggplot(out, aes(x = date_peak, y = duration)) +      #os 3 mais longos
-   geom_lolli(n = 3, colour_n = "red") +
-   scale_color_distiller(palette = "Spectral") +
-   xlab("Peak date") + ylab("Event duration [days]")
+# ggplot(out, aes(x = date_peak, y = duration)) +      #os 3 mais longos
+#   geom_lolli(n = 3, colour_n = "red") +
+#   scale_color_distiller(palette = "Spectral") +
+#   xlab("Peak date") + ylab("Event duration [days]")
  
- ggplot(out, aes(x = date_peak, y = intensity_max)) +      #mais intensos
-   geom_lolli(n = 10, colour_n = "green") +
-   scale_color_distiller(palette = "Spectral") +
-   xlab("Peak date") + ylab("Intensidade máxima")
+# ggplot(out, aes(x = date_peak, y = intensity_max)) +      #mais intensos
+#   geom_lolli(n = 10, colour_n = "green") +
+#   scale_color_distiller(palette = "Spectral") +
+#   xlab("Peak date") + ylab("Intensidade máxima")
  
- ggplot(out, aes(x = date_peak, y = intensity_max)) +      #duração e intensidade cumulativa
-   geom_lolli(aes(colour = intensity_mean)) +
-   scale_color_distiller(palette = "Spectral", name = "intensity mean") +
-   xlab("Date") + ylab("intensity_max")
+# ggplot(out, aes(x = date_peak, y = intensity_max)) +      #duração e intensidade cumulativa
+#   geom_lolli(aes(colour = intensity_mean)) +
+#   scale_color_distiller(palette = "Spectral", name = "intensity mean") +
+#   xlab("Date") + ylab("intensity_max")
 
  
  ######################### 03/03/2023
  #### O que usar? tmax, tmin ou tmean <- talvez seja bom ver no modelo o que afeta mais
  ### mesma problematica, usar tudo ou separar pg e ft...
- #sazonalidade
+
+# Get climatology values
+clim_Al <- ts2clm(heatwaveR::Algiers, x = t, y = tMax,
+                  climatologyPeriod = c("1961-01-01", "1990-12-31"))
+
+# Detect events in tMax
+detect_Al <- detect_event(clim_Al, x = t, y = tMax)
+
+# Plot an event
+event_line(detect_Al, x = t, y = tMax, spread = 150, metric = duration,
+           start_date = "2000-06-16", end_date = "2004-09-08")
+
+
+
+
+#### USANDO TEMP MEDIA, MAX E MIN
+temp_resumo<- temperatura %>% 
+  group_by(data, sensor, site, season) %>% 
+  dplyr::summarise(tmean = mean(temp, na.rm = TRUE),
+                   tmin = min(temp, na.rm = TRUE),
+                   tmax = max(temp, na.rm = TRUE))
+
+temp_resumo$sensor_stress[temp_resumo$sensor == 'FORTSHADE'] <- 'sombra'
+temp_resumo$sensor_stress[temp_resumo$sensor == 'FORTSUN'] <- 'sol'
+temp_resumo$sensor_stress[temp_resumo$sensor == 'PGSHADE'] <- 'sombra'
+temp_resumo$sensor_stress[temp_resumo$sensor == 'PGSUN'] <- 'sol'
+
 pg2 <- temp_resumo %>% 
   filter(site == "Praia Grande")
 
@@ -628,9 +714,9 @@ ft2<- temp_resumo %>%
 max(ft2$data)
 min(ft2$data)
 
-#sazonalidade 
+# CLIMATOLOGIA
 # geral
-ts2_2<- ts2clm(
+ts2_geral2<- ts2clm(
   temp_resumo,
   x = data,
   y = tmax,
@@ -646,14 +732,19 @@ ts2_2<- ts2clm(
   roundClm = 4
 ) 
 
-ggplot(ts2_2, aes(x=data, y=tmax)) +
-  geom_line()
+Clima_Arraial_2<- ggplot(ts2_geral2, aes(x=data, y=tmax)) +
+  geom_line() +
+  xlab("Data") +
+  ylab("Temperatura (ºC)") +
+  ggtitle("Climatologia Arraial do Cabo")
+
+Clima_Arraial_2
 
 # Fortaleza
-ft2_ts2<- ts2clm(
+ ts2_ft2<- ts2clm(
    ft2,
    x = data,
-   y = tme,
+   y = tmax,
    climatologyPeriod = c("2019-06-16", "2022-07-30"),
    robust = FALSE,
    maxPadLength = FALSE,
@@ -666,11 +757,20 @@ ft2_ts2<- ts2clm(
    roundClm = 4
  ) 
  
- ggplot(ft2_ts2, aes(x=data, y=tmax)) +
-   geom_line()
+ Clima_Fort_2<- ggplot(ts2_ft2, aes(x=data, y=tmax)) +
+   geom_line() +
+   xlab("Data") +
+   ylab("Temperatura (ºC)") +
+   ggtitle("Climatologia Fortaleza")
  
- detect_ft2<- detect_event(
-   ft2_ts2,
+ Clima_Fort_2
+ 
+ Clima_Arraial_2 + Clima_Fort_2
+ 
+ ## DETECÇÃO DOS EVENTOS DE ONDAS DE CALOR
+ # Geral
+ detect_geral2<- detect_event(
+   ts2_geral2,
    x = data,
    y = tmax,
    seasClim = seas,
@@ -686,5 +786,261 @@ ft2_ts2<- ts2clm(
    categories = FALSE,
    roundRes = 4)
  
- out2<- detect_ft2$event
+ event_geral2<- detect_geral2$event
+ climatology_geral2<- detect_geral2$climatology
  
+ # Fortaleza
+ detect_ft2<- detect_event(
+   ts2_ft2,
+   x = data,
+   y = tmax,
+   seasClim = seas,
+   threshClim = thresh,
+   threshClim2 = NA,
+   minDuration = 5,
+   minDuration2 = minDuration,
+   joinAcrossGaps = TRUE,
+   maxGap = 2,
+   maxGap2 = maxGap,
+   coldSpells = FALSE,
+   protoEvents = FALSE,
+   categories = FALSE,
+   roundRes = 4)
+ 
+ event_ft2<- detect_ft2$event
+ climatology_ft2<- detect_ft2$climatology
+ 
+ # CALCULANDO MÉDIAS ANUAIS
+ # Geral
+ yearmean_geral2<- block_average(detect_geral2, x = data, y = tmax, report = "full")
+ 
+ summary(glm(count ~ year, yearmean_geral2, family = "poisson")) #preciso entender melhor
+ glm(formula = count ~ year, family = "poisson", data = yearmean_geral2) #preciso entender melhor
+ 
+ ggplot(data = yearmean_geral2, aes(x = year, y = count)) +  ##número de eventos
+   geom_point(colour = "blue") +
+   geom_line() +
+   labs(x = NULL, y = "Número de eventos (Arraial do Cabo)")
+ 
+ ggplot(data = yearmean_geral2, aes(x = year, y = intensity_cumulative)) +   ### intensidade cumulativa. Ver se é o melhor parametro. 
+   geom_point(colour = "salmon") +
+   geom_line() +
+   labs(x = NULL, y = "Intensidade cumulativa (Arraial do Cabo)")
+ 
+ ggplot(data = yearmean_geral2, aes(x = year, y = intensity_max)) +   ### intensidade cumulativa. Ver se é o melhor parametro. 
+   geom_point(colour = "salmon") +
+   geom_line() +
+   labs(x = NULL, y = "Intensidade max (Arraial do Cabo)")
+ 
+ # Fortaleza
+ yearmean_ft2<- block_average(detect_ft2, x = data, y = tmax, report = "full")
+ 
+ summary(glm(count ~ year, yearmean_ft2, family = "poisson")) #preciso entender melhor
+ glm(formula = count ~ year, family = "poisson", data = yearmean_ft2) #preciso entender melhor
+ 
+ ggplot(data = yearmean_ft2, aes(x = year, y = count)) +  ##número de eventos
+   geom_point(colour = "blue") +
+   geom_line() +
+   labs(x = NULL, y = "Número de eventos")
+ 
+ ggplot(data = yearmean_ft2, aes(x = year, y = intensity_cumulative)) +   ### intensidade cumulativa
+   geom_point(colour = "salmon") +
+   geom_line() +
+   labs(x = NULL, y = "Intensidade cumulativa")
+ 
+ ### CATEGORIZANDO OS EVENTOS DE HEATWAVE
+ #### ver como fazer separado por anos
+ #### Por alguma razão os eventos moderados não estão aparecendo.
+ # Geral
+ cat_geral2<- category(
+   detect_geral2,
+   y = tmax,
+   S = TRUE,
+   name = "Event",
+   climatology = FALSE,
+   MCScorrect = F,
+   season = "range",
+   roundVal = 4
+ )
+ 
+ freq_cat_geral2<- count(cat_geral2, category) #contando frequência das categorias
+ 
+ freq_cat_geral2 %>%
+   ggplot(aes(x=category, y=n)) + 
+   geom_bar(stat = "identity")
+ 
+ # Fortaleza
+ cat_ft2<- category(
+   detect_ft2,
+   y = tmax,
+   S = TRUE,
+   name = "Event",
+   climatology = FALSE,
+   MCScorrect = F,
+   season = "range",
+   roundVal = 4
+ )
+ 
+ freq_cat_ft2<- count(cat_ft2, category) #contando frequência das categorias
+ 
+ freq_cat_ft2 %>%
+   ggplot(aes(x=category, y=n)) + 
+   geom_bar(stat = "identity") 
+ 
+ # PLOTANDO A CLIMATOLOGIA
+ # NÃO ESTÁ FUNCIONANDO. COLOQUEI O ISSUE NO GITHUB, ESPERAR A RESPOSTA.
+ 
+ # geral
+ event_line(
+   detect_geral2,
+   x = data,
+   y = tmax,
+   metric = duration,
+   min_duration = 5,
+   spread = 150,
+   start_date = '2019-06-16',
+   end_date = '2022-09-08',
+   category = FALSE,
+   x_axis_title = NULL,
+   x_axis_text_angle = NULL,
+   y_axis_title = NULL,
+   y_axis_range = NULL
+ )
+ 
+ event_line(detect_geral2, x= data, y= tmax, spread = 100, metric = duration,
+            start_date = "2019-06-16", end_date = "2022-09-08")
+ 
+ # PLOTANDO HEATWAVES
+ # Geral
+ ggplot(event_geral2, aes(x= date_peak, y= intensity_max)) +
+   geom_point() + 
+   geom_segment( aes(x=date_peak, xend= date_peak, y=0, yend=intensity_max))
+ 
+ ggplot(event_geral2, aes(x = event_no, y = duration)) +      #duração e intensidade cumulativa
+   geom_lolli(aes(colour = intensity_cumulative)) +
+   scale_color_distiller(palette = "Spectral", name = "Cumulative \nintensity") +
+   xlab("Event Number") + ylab("Event duration [days]") 
+ 
+ 
+ #ggplot(event_ft, aes(x = date_peak, y = duration)) +      #os 3 mais longos
+ #  geom_lolli(n = 3, colour_n = "red") +
+ #  scale_color_distiller(palette = "Spectral") +
+ #  xlab("Peak date") + ylab("Event duration [days]")
+ 
+ #ggplot(event_ft, aes(x = date_peak, y = intensity_max)) +      #mais intensos
+ #  geom_lolli(n = 10, colour_n = "green") +
+ #  scale_color_distiller(palette = "Spectral") +
+ #  xlab("Peak date") + ylab("Intensidade máxima")
+ 
+ ggplot(event_geral2, aes(x = event_no, y = intensity_max)) +      #duração e intensidade cumulativa
+   geom_lolli(aes(colour = intensity_mean)) +
+   scale_color_distiller(palette = "Spectral", name = "intensity mean") +
+   xlab("Event Number") + ylab("intensity_max")
+ 
+ ggplot(event_geral2, aes(x = event_no, y = intensity_max)) +      #duração e intensidade cumulativa
+   geom_lolli(aes(colour = intensity_cumulative)) +
+   scale_color_distiller(palette = "Spectral", name = "intensity cumulative") +
+   xlab("Event Number") + ylab("intensity_max")
+ 
+ ###############################################
+ # COLDSPELLS
+ # Geral
+ ts2_cold<- ts2clm(
+   temp_resumo,
+   x = data,
+   y = tmin,
+   climatologyPeriod = c("2019-06-16", "2022-09-08"),
+   robust = FALSE,
+   maxPadLength = FALSE,
+   windowHalfWidth = 5,
+   pctile = 10,
+   smoothPercentile = TRUE,
+   smoothPercentileWidth = 31,
+   clmOnly = FALSE,
+   var = FALSE,
+   roundClm = 4
+ ) 
+ 
+ cold<- ggplot(ts2_cold, aes(x=data, y=tmin)) +
+   geom_line() +
+   xlab("Data") +
+   ylab("Temperatura (ºC)") +
+   ggtitle("Climatologia Arraial do Cabo")
+ 
+ cold
+ 
+ detect_cold<- detect_event(
+   ts2_cold,
+   x = data,
+   y = tmin,
+   seasClim = seas,
+   threshClim = thresh,
+   threshClim2 = NA,
+   minDuration = 5,
+   minDuration2 = minDuration,
+   joinAcrossGaps = TRUE,
+   maxGap = 2,
+   maxGap2 = maxGap,
+   coldSpells = TRUE,
+   protoEvents = FALSE,
+   categories = FALSE,
+   roundRes = 4)
+ 
+ event_cold<- detect_cold$event
+ climatology_cold<- detect_cold$climatology
+ 
+ yearmean_cold<- block_average(detect_cold, x = data, y = tmin, report = "full")
+ summary(glm(count ~ year, yearmean_cold, family = "poisson")) #preciso entender melhor
+ glm(formula = count ~ year, family = "poisson", data = yearmean_cold) #preciso entender melhor
+ 
+ ggplot(data = yearmean_cold, aes(x = year, y = count)) +  ##número de eventos
+   geom_point(colour = "blue") +
+   geom_line() +
+   labs(x = NULL, y = "Número de Coldspells")
+ 
+ ggplot(data = yearmean_cold, aes(x = year, y = intensity_cumulative)) +   ### intensidade cumulativa. Ver se é o melhor parametro. 
+   geom_point(colour = "salmon") +
+   geom_line() +
+   labs(x = NULL, y = "Intensidade cumulativa Coldspells")
+ 
+ cat_cold<- category(
+   detect_cold,
+   y = tmin,
+   S = TRUE,
+   name = "Event",
+   climatology = FALSE,
+   MCScorrect = TRUE,
+   season = "range",
+   roundVal = 4
+ )
+ 
+ freq_cat_cold<- count(cat_cold, category) #contando frequência das categorias
+ 
+ freq_cat_cold %>%
+   ggplot(aes(x=category, y=n)) + 
+   geom_bar(stat = "identity")
+ 
+ 
+ 
+ # PLOTANDO HEATWAVES
+ # Geral
+ ggplot(event_cold, aes(x= date_peak, y= intensity_max)) +
+   geom_point() + 
+   geom_segment( aes(x=date_peak, xend= date_peak, y=0, yend=intensity_max))
+ 
+ ggplot(event_cold, aes(x = date_peak, y = duration)) +      #duração e intensidade cumulativa
+   geom_lolli(aes(colour = intensity_cumulative)) +
+   scale_color_distiller(palette = "Spectral", name = "Cumulative \nintensity") +
+   xlab("Data") + ylab("Event duration [days]") 
+ 
+ ggplot(event_cold, aes(x = date_peak, y = intensity_max)) +      #duração e intensidade cumulativa
+   geom_lolli(aes(colour = intensity_mean)) +
+   scale_color_distiller(palette = "Spectral", name = "intensity mean") +
+   xlab("Data") + ylab("intensity_max")
+ 
+ ggplot(event_cold, aes(x = date_peak, y = intensity_max)) +      #duração e intensidade cumulativa
+   geom_lolli(aes(colour = intensity_cumulative)) +
+   scale_color_distiller(palette = "Spectral", name = "intensity cumulative") +
+   xlab("Data") + ylab("intensity_max")
+ 
+ ## PROBLEMA: SEM DADOS DE MONITORAMENTO DE PG. 
