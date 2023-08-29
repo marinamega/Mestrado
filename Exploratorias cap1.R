@@ -34,7 +34,7 @@ plotcov <- entremares %>%
   geom_boxplot() +
   # geom_bar(stat = "identity") +
   ggtitle("a) organismos sésseis")+
-  xlab("tipo de cobertura") +
+  xlab("") +
   ylab("cobertura relativa (%)")+
   facet_grid(tideHeight ~ locality, scales = "free_y") +
   theme_classic() +
@@ -52,7 +52,7 @@ plotmot <- entremares %>%
   # geom_bar(stat = "identity") +
   geom_boxplot() +
   ggtitle("b) organismos móveis")+
-  xlab("organismos") +
+  xlab("") +
   ylab(expression("densidade (ind.0,25"~ m^-2~ ")")) +
   facet_grid(tideHeight ~ locality, scales = "free_y" ) + 
   theme_classic() +
@@ -133,7 +133,7 @@ library(heatwaveR)
 #write.csv(temp_arraial_jan2023, "temp_arraial_jan2023.csv", row.names = F)
 
 #Dataframe com edições
-temperatura <- read.csv('temp_arraial_jan2023.csv', sep = ',') %>% 
+temperatura <- read.csv('temp_arraial_julho2023.csv', sep = ',') %>% 
   mutate(date_time = as.POSIXct(date_time), 
          mes = month(date_time),
          hora = lubridate::hour(date_time),
@@ -157,7 +157,7 @@ temperatura <- read.csv('temp_arraial_jan2023.csv', sep = ',') %>%
   group_by(mes) %>% 
   dplyr::summarise(extremo = quantile(temp, probs = 0.9, na.rm = T))
 
-maxis
+maxis %>% plot()
 
 # dias acima do 90º percentil
 temperatura %>% 
@@ -165,7 +165,8 @@ temperatura %>%
   left_join(maxis) %>% 
   mutate(acima = ifelse(temp >= extremo, 1, 0)) %>% 
   group_by(season, mes) %>% 
-  dplyr::summarise(d = sum(acima)/length(temp)*100)
+  dplyr::summarise(d = sum(acima)/length(temp)*100) %>% 
+  arrange(mes)
 
 #gráfico de barras: temperatura ao longo do dia 
 temperatura %>% 
@@ -479,7 +480,7 @@ consecday_ft<- exceedance(
 consecthres_ft<- consecday_ft$threshold
 consecexcee_ft<- consecday_ft$exceedance
 
-consecexcee %>%
+consecexcee_ft %>%
   ggplot(aes(x=exceedance_no, y=duration)) + 
   geom_bar(stat = "identity") 
 
@@ -1044,3 +1045,4 @@ Clima_Arraial_2
    xlab("Data") + ylab("intensity_max")
  
  ## PROBLEMA: SEM DADOS DE MONITORAMENTO DE PG. 
+ 
