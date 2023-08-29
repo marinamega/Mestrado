@@ -82,9 +82,29 @@ str(entremares$relative_cover)
 entremares$density_025m2<- as.numeric(entremares$density_025m2) #transformando em numérico
 str(entremares$density_025m2)
 
+## INCLUINDO OS ZEROS
+
+entremares_zeros <- entremares %>%
+  select(locality, eventDate, tideHeight, season, quadrat, motile, density_025m2) %>% 
+  filter(!is.na(density_025m2)) %>%
+  pivot_wider(names_from = motile, values_from = density_025m2) %>% 
+  pivot_longer(cols = `Fissurella rosea`:`Onchidella indolens`, names_to = "motile", values_to = "density_025m2") %>% 
+  mutate_all(., ~replace_na(.,0)) 
+
+entremares_zeros %>% 
+  group_by(locality, eventDate, tideHeight, season, quadrat) %>% 
+  summarise(density_025m2 = mean(density_025m2)) %>% 
+  mutate(tideHeight = factor(tideHeight, levels = c("high", "mid", "low")),
+         year = year(eventDate)) %>%  
+  ggplot(aes(x = year, group = year, y = density_025m2)) + 
+    geom_boxplot(outlier.shape = "") +
+    geom_jitter(width = 0.1, alpha = 0.4) +
+    facet_grid(tideHeight ~ locality, scales = "free_y") +
+    theme_bw()
+
 ### obtendo as médias para boxplot
 # móveis
-density_perday<- entremares %>%
+density_perday <- entremares %>%
   filter(!motile %in% NA) %>%
   group_by(eventDate, locality, season, tideHeight, motile, year) %>% 
   dplyr::summarise(sum = sum(density_025m2, na.rm = TRUE), #por soma dividir por 10 quadrados pra ter a densidade e depois usar
@@ -101,14 +121,16 @@ density<- entremares %>%
 density %>% 
   filter(!densidade_m2 < 3) %>% 
   mutate(tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
-  ggplot(aes(x = year, y = densidade_m2, fill = motile)) + 
-  geom_bar(stat = 'identity') + 
-  scale_fill_viridis_d() + 
+  ggplot(aes(x = year, group = year, y = densidade_m2, fill = motile)) + 
+  # geom_bar(stat = 'identity') + 
+  geom_boxplot() +
+  geom_jitter(width = 0.3, alpha = 0.4) +
+  # scale_fill_viridis_d() + 
   facet_grid(tideHeight ~ locality, scales = "free_y") +
   theme_bw()
 
 # nao da certo. Filtra, mas gráfico de barras fica diferente.
-densidade_dom<- density_perday %>% 
+densidade_dom <- density_perday %>% 
   filter(motile == c('Echinolittorina lineolata', 'Fissurella rosea', 'Lottia subrugosa', 'Stramonita haemastoma'))
 unique(densidade_dom$motile)
 
@@ -281,7 +303,7 @@ bar_moveis %>%
   filter(mean >= 4) %>% #ver se deixa stramonita ou não. Se sim, colocar 2. Vem outros grupos.
   ggplot(aes(x=motile, y=mean)) +
   geom_bar(stat="identity", fill="skyblue", alpha=0.7) +
-  geom_errorbar( aes(x=motile, ymin=mean-desvio, ymax=mean+desvio), width=0.4, colour="orange", alpha=0.9, size=0.8) +
+  geom_errorbar( aes(x=motile, ymin=mean, ymax=mean+desvio), width=0.4, colour="orange", alpha=0.9, size=0.8) +
   coord_flip() +
   ggtitle("b) organismos móveis")+
   xlab("organismos") +
@@ -307,7 +329,7 @@ bar_sesseis %>%
   filter(mean >= 10) %>% 
   ggplot(aes(x=type_cover, y=mean)) +
   geom_bar(stat="identity", fill="skyblue", alpha=0.7) +
-  geom_errorbar( aes(x=type_cover, ymin=mean-desvio, ymax=mean+desvio), width=0.4, colour="orange", alpha=0.9, size=0.8) +
+  geom_errorbar( aes(x=type_cover, ymin=mean, ymax=mean+desvio), width=0.4, colour="orange", alpha=0.9, size=0.8) +
   coord_flip() +
   ggtitle("b) organismos móveis")+
   xlab("organismos") +
@@ -593,14 +615,14 @@ lntemp_perday<- temperatura %>%
 verao_perday <- lntemp_perday %>% #infos de verão por dia
   filter(season == 'verao')
 
-plot_verao<- temperatura %>% 
+plot_verao <- temperatura %>% 
   filter(season == 'verao') %>% 
   ggplot(aes(x = site, y = temp, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
   theme_classic() +
   ggtitle("Verão") +
-  ylab("Temperatura (ºC)")+
-  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5)) +
+  labs(x = "", y = "Temperatura (ºC)")  + labs(color='') 
 
 verao_anova <- aov(verao_perday$ln_tmean ~ verao_perday$sensor, data= verao_perday)
 anova(verao_anova)
@@ -617,9 +639,9 @@ plot_prima<- temperatura %>%
   ggplot(aes(x = site, y = temp, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
   theme_classic() +
-  ylab("Temperatura (ºC)")+
   ggtitle("Primavera") +
-  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5)) +
+  labs(x = "", y = "Temperatura (ºC)")  + labs(color='') 
 
 prima_anova <- aov(prima_perday$ln_tmean ~ prima_perday$sensor, data= prima_perday)
 anova(prima_anova)
@@ -636,9 +658,9 @@ plot_outono<- temperatura %>%
   ggplot(aes(x = site, y = temp, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
   theme_classic() +
-  ylab("Temperatura (ºC)")+
   ggtitle("Outono") +
-  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5)) +
+  labs(x = "", y = "Temperatura (ºC)")  + labs(color='') 
 
 outono_anova <- aov(outono_perday$ln_tmean ~ outono_perday$sensor, data= outono_perday)
 anova(outono_anova)
@@ -655,9 +677,9 @@ plot_inverno<- temperatura %>%
   ggplot(aes(x = site, y = temp, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
   theme_classic() +
-  ylab("Temperatura (ºC)")+
   ggtitle("Inverno") +
-  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5)) +
+  labs(x = "", y = "Temperatura (ºC)") + labs(color='') 
 
 inverno_anova <- aov(inverno_perday$ln_tmean ~ inverno_perday$sensor, data= inverno_perday)
 anova(inverno_anova)
@@ -665,7 +687,7 @@ inverno_tukey<- TukeyHSD(inverno_anova)
 
 inverno_cld <- multcompLetters4(inverno_anova, inverno_tukey)
 
-plot_verao + plot_prima + plot_inverno + plot_outono #plotando todos juntos
+plot_verao + plot_prima + plot_inverno + plot_outono + plot_layout(guides = "collect")#plotando todos juntos
 print(verao_cld)
 print(prima_cld)
 print(inverno_cld)
