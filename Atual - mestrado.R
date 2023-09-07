@@ -31,7 +31,7 @@ entremares %>%
   theme_bw()
 
 # juntando amphiroa e jania
-entremares<- entremares %>% 
+entremares <- entremares %>% 
   mutate(type_cover = recode(type_cover, "Jania" = "ACA"),
          type_cover = recode(type_cover, 'Amphiroa' = 'ACA'),
          type_cover = recode(type_cover, 'Alga vermelha' = 'Corticada'),
@@ -76,19 +76,79 @@ entremares <- entremares %>%
 unique(entremares$type_cover) #sésseis
 unique(entremares$motile) #móveis
 
-entremares$relative_cover<- as.numeric(entremares$relative_cover) #transformando em numérico
-str(entremares$relative_cover)
+# entremares$relative_cover<- as.numeric(entremares$relative_cover) #transformando em numérico
+# str(entremares$relative_cover)
 
-entremares$density_025m2<- as.numeric(entremares$density_025m2) #transformando em numérico
-str(entremares$density_025m2)
+# entremares$density_025m2<- as.numeric(entremares$density_025m2) #transformando em numérico
+# str(entremares$density_025m2)
 
 ## INCLUINDO OS ZEROS
-# DANDO ERRO
+# substituir contagens antigas de Echinolittorina (ex. 150/89)
+
+litto <- data.frame(density_025m2 = entremares %>% 
+                      select(density_025m2) %>% 
+                      filter(!is.na(density_025m2),
+                             nchar(density_025m2) == 6) %>% 
+                      distinct() %>% pull(),
+                    d2 = c(
+                      (150/25)*8,
+                      (150/22)*8,
+                      (150/16)*8,
+                      (150/38)*8,
+                      (150/27)*8,
+                      (150/12)*8,
+                      (150/10)*8,
+                      (150/53)*8,
+                      (150/55)*8,
+                      (150/14)*8,
+                      (150/13)*8,
+                      (150/23)*8,
+                      (150/39)*8,
+                      (150/68)*8,
+                      (150/89)*8,
+                      (150/79)*8,
+                      (150/28)*8,
+                      (150/76)*8,
+                      (150/35)*8,
+                      (150/82)*8,
+                      (150/24)*8,
+                      (150/50)*8,
+                      (150/46)*8,
+                      (150/69)*8,
+                      (150/37)*8,
+                      (150/43)*8,
+                      (150/36)*8,
+                      (150/21)*8,
+                      (150/63)*8,
+                      (150/33)*8,
+                      (150/17)*8,
+                      (150/40)*8,
+                      (150/11)*8,
+                      (150/87)*8,
+                      (150/73)*8,
+                      (150/34)*8,
+                      (150/18)*8,
+                      (150/31)*8,
+                      (150/91)*8,
+                      (150/42)*8,
+                      (150/78)*8,
+                      (150/49)*8,
+                      (150/70)*8,
+                      (150/26)*8,
+                      (150/62)*8
+                    ) %>% round(0)
+)  
+
+# 
+entremares <- entremares %>%
+  mutate(density_025m2 = plyr::mapvalues(density_025m2, from = litto$density_025m2, to = litto$d2) %>% as.numeric())
+
 entremares_zeros <- entremares %>%
   select(locality, eventDate, data, tideHeight, season, quadrat, motile, density_025m2) %>% 
   filter(!is.na(density_025m2)) %>%
   pivot_wider(names_from = motile, values_from = density_025m2) %>% 
-  pivot_longer(cols = `Fissurella rosea`:`Onchidella indolens`, names_to = "motile", values_to = "density_025m2") %>% 
+  pivot_longer(cols = `Fissurella rosea`:`Onchidella indolens`, names_to = "motile", values_to = "density_025m2") %>%
+  mutate(density_025m2 = as.numeric(density_025m2)) %>% 
   mutate_all(., ~replace_na(.,0)) 
 
 entremares_zeros %>% 
@@ -126,9 +186,9 @@ density %>%
   #ggplot(aes(x = year, y = densidade_m2, fill = motile)) + EU TINHA POSTO. O QUE TA AGORA FOI CESAR
   #geom_bar(stat = 'identity') + 
   #scale_fill_viridis_d() + 
-  ggplot(aes(x = year, group = year, y = densidade_m2, fill = motile)) + 
-  geom_boxplot() +
-  geom_jitter(width = 0.3, alpha = 0.4) +
+  ggplot(aes(x = year, group = year, y = densidade_m2, col = motile)) + 
+  geom_boxplot(width = 0.5, outlier.shape = "") +
+  geom_jitter(width = 0.3, alpha = 0.7) +
   facet_grid(tideHeight ~ locality, scales = "free_y") +
   theme_bw()
 
@@ -139,12 +199,14 @@ density %>%
   geom_boxplot() + 
   scale_fill_viridis_d() + 
   facet_grid(tideHeight ~ locality, scales = "free_y") +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x = element_text(face = "italic")) +
+  labs(x = "")
 
 
 # nao da certo. Filtra, mas gráfico de barras fica diferente.
-densidade_dom<- density_perday %>% 
-  filter(motile == c('Echinolittorina lineolata', 'Fissurella rosea', 'Lottia subrugosa', 'Stramonita haemastoma'))
+densidade_dom <- density_perday %>% 
+  filter(motile %in% c('Echinolittorina lineolata', 'Fissurella rosea', 'Lottia subrugosa', 'Stramonita haemastoma'))
 unique(densidade_dom$motile)
 
 
@@ -157,11 +219,11 @@ unique(densidade_dom$motile)
 #                   desvio = sd(density_025m2, na.rm = TRUE)) %>%
 #  data.frame()
 
-mean_density <- mean_density %>% #retirando os Na's
-  filter(!desvio %in% NA)
+# mean_density <- mean_density %>% #retirando os Na's
+#   filter(!desvio %in% NA)
 
 # sésseis
-cover_perday<- entremares %>%
+cover_perday <- entremares %>%
   filter(!type_cover %in% NA,
          !locality == 'Praia Grande',
          !locality == 'Atalaia') %>%
@@ -180,7 +242,7 @@ cover_perday %>%
   facet_grid(tideHeight ~ locality, scales = "free_y") +
   theme_bw()
 
-cover<- entremares %>%
+cover <- entremares %>%
   filter(!type_cover %in% NA) %>%
   group_by(locality, season, tideHeight, type_cover, year) %>% 
   dplyr::summarise(mean = mean(relative_cover, na.rm = TRUE),
@@ -188,15 +250,42 @@ cover<- entremares %>%
   data.frame()
 
 ## PROBLEMAÇO: MAIS DE 100% DE COBERTURA
-teste<- cover_perday %>%
+teste <- cover_perday %>%
   filter(!type_cover %in% NA) %>%
   group_by(eventDate, locality, season, tideHeight, year) %>% 
   dplyr::summarise(sum = sum(mean, na.rm = TRUE)) %>%
   data.frame()
 
+
+entremares %>%
+  filter(!is.na(type_cover),
+         type_cover != "NA") %>%
+  mutate(type_cover = plyr::mapvalues(type_cover,
+                                      from = c("Filamentosa", "Corticada", "Crostosa",  "Foliacea", "ACA", "Coriacea",
+                                               "Bunodosoma caissarum", "Tedania ignis", "Petaloconchus varians",
+                                               "Isognomon bicolor", "Perna perna", "Crassostrea brasiliana", "Ostra",
+                                               "Echinometra lucunter", "Lottia subrugosa", "Fissurella rosea", "Echinolittorina lineolata",
+                                               "Stramonita haemastoma", "Eriphia gonagra", "Onchidella indolens", "Claremontiella nodulosa"),
+                                      to = c(rep("macroalgae", 6),
+                                             rep("other sessile", 3),
+                                             rep("other bivalve", 4),
+                                             rep("motile", 8))) %>% 
+           factor(., levels = c("Chthamalus bisinuatus", "Bare rock", "Mytilaster solisianus", 
+                                "Tetraclita stalactifera", "macroalgae", "other bivalve",
+                                "motile", "other sessile",  "Cyanophyceae", "CCA")),
+         tideHeight = factor(tideHeight, levels = c("high", "mid", "low"))) %>% 
+  group_by(locality, season, tideHeight, type_cover, year, quadrat) %>%
+  dplyr::summarise(soma = sum(relative_cover, na.rm = TRUE)) %>%
+  ggplot(aes(x = year, y = soma, fill = type_cover)) + 
+    geom_bar(position = "fill", stat = "identity") +
+    scale_fill_viridis_d() + # mudar a escala para aumentar contraste
+    facet_grid(tideHeight ~ locality, scales = "free_y") +
+    theme_bw()
+
+
 #mais representativos em cada substrato em cada ano
 #Bare rock, Chthamalus bisinuatus, Foliacea, Mytilaster solisianus, Tetraclita stalactifera, Coriacea, Crostosa, Cyanophyceae
-coverhigh<- cover_perday %>% 
+coverhigh <- cover_perday %>% 
   filter(tideHeight == 'high')
 
 coverhigh %>%
@@ -320,7 +409,7 @@ bar_moveis %>%
   geom_errorbar( aes(x=motile, ymin=mean, ymax=mean+desvio), width=0.4, colour="orange", alpha=0.9, size=0.8) +
   coord_flip() +
   ggtitle("b) organismos móveis")+
-  xlab("organismos") +
+  xlab("") +
   ylab(expression("densidade média (ind.0,25"~ m^-2~ ")")) +
   facet_grid(tideHeight ~ locality, scales = "free_y" ) +
   theme_classic() +
@@ -347,7 +436,7 @@ bar_sesseis %>%
   geom_errorbar( aes(x=type_cover, ymin=mean, ymax=mean+desvio), width=0.4, colour="orange", alpha=0.9, size=0.8) +
   coord_flip() +
   ggtitle("b) organismos móveis")+
-  xlab("organismos") +
+  xlab("") +
   ylab(expression("cobertura (%)")) +
   facet_grid(tideHeight ~ locality, scales = "free_y" ) +
   theme_classic() +
@@ -443,6 +532,7 @@ mean_cover %>%  #acrescentar barra de erro (stat summary)
 
 
 ####### DADOS DE TEMPERATURA (SENSORES NA ROCHA) #######
+# RECOMENDO COLOCAR DAQUI PRA BAIXO EM OUTRO SCRIPT, ESSE JAH ESTAH GIGANTE!
 library(scales)
 library(heatwaveR)
 library(dygraphs)
@@ -583,7 +673,7 @@ temperatura %>%
   theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
 
 
-v<- heat_interval %>% 
+v <- heat_interval %>% 
   filter(season == 'verao') %>% 
   ggplot(aes(x = site, y = onset_rate, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
@@ -594,7 +684,7 @@ v<- heat_interval %>%
   theme_classic() +
   theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
 
-p<- heat_interval %>% 
+p <- heat_interval %>% 
   filter(season == 'primavera') %>% 
   ggplot(aes(x = site, y = onset_rate, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
@@ -606,7 +696,7 @@ p<- heat_interval %>%
   theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
 
 
-o<- heat_interval %>% 
+o <- heat_interval %>% 
   filter(season == 'outono') %>% 
   ggplot(aes(x = site, y = onset_rate, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
@@ -618,7 +708,7 @@ o<- heat_interval %>%
   theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
 
 
-i<-heat_interval %>% 
+i <-heat_interval %>% 
   filter(season == 'inverno') %>% 
   ggplot(aes(x = site, y = onset_rate, color = sensor_stress)) +
   geom_boxplot(shape=21, outlier.shape = TRUE) + 
@@ -629,16 +719,16 @@ i<-heat_interval %>%
   theme_classic() +
   theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
 
-v + p + o + i
+v + p + o + i + plot_layout(guides="collect")
 
 v_onset_rate <- heat_interval %>% 
   filter(season == 'verao')
 
 hist(v_onset_rate$onset_rate)
 
-v_onset_rate_anova<- aov(v_onset_rate$onset_rate ~ v_onset_rate$sensor, data= v_onset_rate)
+v_onset_rate_anova <- aov(v_onset_rate$onset_rate ~ v_onset_rate$sensor, data= v_onset_rate)
 anova(v_onset_rate_anova)
-v_onset_rate_tukey<- TukeyHSD(v_onset_rate_anova)
+v_onset_rate_tukey <- TukeyHSD(v_onset_rate_anova)
 v_onset_rate_cld <- multcompLetters4(v_onset_rate_anova, v_onset_rate_tukey)
 v_onset_rate_cld
 
@@ -699,7 +789,7 @@ max_temp %>%
   slice(which.max(tmax))
 
 kruskal.test(tmax~sensor, data = verao_in)
-m<- pairwise.wilcox.test(verao_in$tmax,
+m <- pairwise.wilcox.test(verao_in$tmax,
                          verao_in$sensor,
                          p.adjust.method="bonferroni") #ver se esse é o melhor metodo Bonferroni
 
@@ -713,7 +803,7 @@ multcompLetters(ma.pvals)
 
 
 kruskal.test(tmax~sensor, data = prima_in)
-mm<- pairwise.wilcox.test(prima_in$tmax,
+mm <- pairwise.wilcox.test(prima_in$tmax,
                           prima_in$sensor,
                           p.adjust.method="bonferroni") #ver se esse é o melhor metodo Bonferroni
 mm$p.value
@@ -856,7 +946,7 @@ o_i_cld
 #  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
 
 ### Temperatura por estação do ano
-temp_season<- temperatura %>%
+temp_season <- temperatura %>%
   group_by(site, season, sensor_stress, sensor) %>% 
   dplyr::summarise(tmax = max(temp, na.rm = TRUE),
                    tmin = min(temp, na.rm = TRUE),
@@ -870,12 +960,13 @@ temperatura %>% #original, boxplot
   geom_boxplot(shape=21) + #, outlier.shape = NA) + 
   theme_classic() +
   facet_grid(~ site) +
-  xlab("Estação do Ano") +
+  xlab("") +
   ylab("Temperatura (ºC)")+
-  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust = 0.5),
+        legend.title= element_blank())
 
 # Temperatura por dia
-temp_perday<- temperatura %>%
+temp_perday <- temperatura %>%
   group_by(data, site, sensor_stress, sensor, season, ano, mes) %>% 
   dplyr::summarise(tmax = max(temp, na.rm = TRUE),
                    tmin = min(temp, na.rm = TRUE),
@@ -890,7 +981,7 @@ hist(temp_perday$tmean)
 
 #Tentando plotar todos juntos (erro)
 #temp média
-resum_temp_perday<- temp_perday[,-c(2,3,5,6,7,8,9,14)]
+resum_temp_perday <- temp_perday[,-c(2,3,5,6,7,8,9,14)]
 
 fortsun<- resum_temp_perday %>% 
   filter(sensor == 'FORTSUN')
@@ -936,7 +1027,7 @@ teste
 
 # separando por sensores
 # fortsun
-fortsun<- temp_perday %>% 
+fortsun <- temp_perday %>% 
   filter(sensor == 'FORTSUN')
 
 fortsun<- fortsun[,-c(2,3,4,5,6,7,8,9,11)]
