@@ -1266,11 +1266,12 @@ print(inverno_cld_range)
 print(outono_cld_range)
 
 # como trabalhar com os máximos? outliers?
+# PODEMOS VER O NUMERO DE DIAS OU MEDICOES ACIMA DO 90TH PERCENTIL OU ACIMA DOS LIMITES INDICADOS NO PAPER DA C. VINAGRE EM CADA ESTACAO DO ANO E SENSOR
 # relevância biológica disso?
 
 ############## testando um trem
 # média por dia (geral - dia 24/06 por ex, não dia esp)
-teste<- temperatura %>%
+teste <- temperatura %>%
   group_by(dia, site, sensor_stress, sensor, season) %>% 
   dplyr::summarise(tmax = max(temp, na.rm = TRUE),
                    tmin = min(temp, na.rm = TRUE),
@@ -1284,10 +1285,11 @@ teste<- temperatura %>%
 teste<- teste %>% # tirando os NA's
   filter(!dia %in% NA)
 
-teste2<- teste %>% 
-  filter(sensor == 'FORTSHADE')
+teste2 <- teste %>% 
+  filter(sensor == 'FORTSHADE') %>% 
+  column_to_rownames("dia")
 
-teste2<- teste2[,-c(2:5)]
+teste2 <- teste2[,-c(1:4)]
 
 data <- as.matrix(teste2)
 heatmap(data)
